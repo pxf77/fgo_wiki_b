@@ -14,8 +14,17 @@ const colorLabels = {
 
 export function ServantCard({ servant, ranking, className }: ServantCardProps) {
   const noblePhantasmLabels = servant.noblePhantasms.map(
-    (np) => `${colorLabels[np.color]} · ${np.scope === "single" ? "单体" : np.scope === "aoe" ? "全体" : "辅助"}`,
+    (np) =>
+      `${colorLabels[np.color]} · ${np.scope === "single" ? "单体" : np.scope === "aoe" ? "全体" : "辅助"}${np.strengthened ? " · 已强化" : ""}`,
   );
+  const latestStrengthening = (servant.strengthenings ?? [])
+    .filter((event) => event.status === "released")
+    .sort(
+      (left, right) =>
+        Date.parse(left.releasedAt) - Date.parse(right.releasedAt) ||
+        left.id.localeCompare(right.id),
+    )
+    .at(-1);
 
   return (
     <article className={className} data-servant-id={servant.id}>
@@ -26,6 +35,11 @@ export function ServantCard({ servant, ranking, className }: ServantCardProps) {
       <h3>{servant.name}</h3>
       <p>{noblePhantasmLabels.join(" / ")}</p>
       <p>自充 {servant.charge.self}% · 群充 {servant.charge.team}%</p>
+      {latestStrengthening ? (
+        <p>
+          最近强化 {latestStrengthening.releasedAt} · {latestStrengthening.target.type === "noble_phantasm" ? "宝具" : `技能${latestStrengthening.target.slot}`}
+        </p>
+      ) : null}
       <div aria-label="标签">{servant.tags.join(" · ")}</div>
       {ranking ? <p>{ranking.rationale}</p> : null}
     </article>

@@ -36,10 +36,10 @@
             "name": "痛幻的哭奏",
             "color": "quick",
             "scope": "single",
-            "strengthened": true,
             "hitCount": 6,
             "targetTraits": ["诅咒状态"],
-            "effects": ["必中", "诅咒", "按诅咒层数获得特攻"]
+            "effects": ["必中", "诅咒", "按诅咒层数获得特攻"],
+            "strengthened": false
           }
         ]
       }
@@ -76,16 +76,16 @@
             "name": "月は知らず、久遠の光",
             "color": "buster",
             "scope": "single",
-            "strengthened": false,
-            "effects": ["无视防御"]
+            "effects": ["无视防御"],
+            "strengthened": false
           },
           {
             "id": "ptolemy-arts-aoe",
             "name": "王之书库",
             "color": "arts",
             "scope": "aoe",
-            "strengthened": false,
-            "effects": ["形态切换", "全体攻击"]
+            "effects": ["形态切换", "全体攻击"],
+            "strengthened": false
           }
         ]
       }
@@ -122,9 +122,9 @@
             "name": "暝暗之匣",
             "color": "arts",
             "scope": "single",
-            "strengthened": false,
             "targetTraits": ["魔性"],
-            "effects": ["魔性特攻", "宝具后自身退场"]
+            "effects": ["魔性特攻", "宝具后自身退场"],
+            "strengthened": false
           }
         ]
       }

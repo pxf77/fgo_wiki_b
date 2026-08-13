@@ -14,6 +14,7 @@ export interface ServantQuery {
   className?: ServantClass;
   npColor?: CardColor;
   npScope?: NoblePhantasmScope;
+  npStrengthened?: boolean;
   minSelfCharge?: number;
   releasedOnly?: boolean;
 }
@@ -42,6 +43,9 @@ export class FgoWikiApiClient {
     if (query.className) params.set("class", query.className);
     if (query.npColor) params.set("npColor", query.npColor);
     if (query.npScope) params.set("npScope", query.npScope);
+    if (query.npStrengthened !== undefined) {
+      params.set("npStrengthened", String(query.npStrengthened));
+    }
     if (query.minSelfCharge !== undefined) {
       params.set("minSelfCharge", String(query.minSelfCharge));
     }

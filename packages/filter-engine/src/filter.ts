@@ -11,6 +11,7 @@ export interface ServantFilter {
   rarities?: Array<1 | 2 | 3 | 4 | 5>;
   npColors?: CardColor[];
   npScopes?: NoblePhantasmScope[];
+  npStrengthened?: boolean;
   minSelfCharge?: number;
   minTeamCharge?: number;
   tags?: string[];
@@ -34,16 +35,19 @@ export function matchesServant(servant: Servant, filter: ServantFilter): boolean
     return false;
   }
 
+  const hasNoblePhantasmFilter =
+    Boolean(filter.npColors?.length) ||
+    Boolean(filter.npScopes?.length) ||
+    filter.npStrengthened !== undefined;
   if (
-    filter.npColors?.length &&
-    !servant.noblePhantasms.some((np) => filter.npColors?.includes(np.color))
-  ) {
-    return false;
-  }
-
-  if (
-    filter.npScopes?.length &&
-    !servant.noblePhantasms.some((np) => filter.npScopes?.includes(np.scope))
+    hasNoblePhantasmFilter &&
+    !servant.noblePhantasms.some(
+      (np) =>
+        (!filter.npColors?.length || filter.npColors.includes(np.color)) &&
+        (!filter.npScopes?.length || filter.npScopes.includes(np.scope)) &&
+        (filter.npStrengthened === undefined ||
+          np.strengthened === filter.npStrengthened),
+    )
   ) {
     return false;
   }

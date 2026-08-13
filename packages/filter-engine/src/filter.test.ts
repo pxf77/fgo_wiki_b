@@ -23,3 +23,20 @@ test("matches aliases and minimum charge", () => {
   assert.equal(result.length, 1);
   assert.equal(result[0]?.id, "archer-tutankhamun");
 });
+
+test("filters independently evidenced NP strengthening state", () => {
+  const result = filterServants(bootstrapServants, {
+    npStrengthened: true,
+  });
+
+  assert.deepEqual(result.map((servant) => servant.id), ["archer-baobhan-sith"]);
+});
+
+test("requires color and scope to match the same Noble Phantasm", () => {
+  const result = filterServants(bootstrapServants, {
+    npColors: ["buster"],
+    npScopes: ["aoe"],
+  });
+
+  assert.deepEqual(result, []);
+});

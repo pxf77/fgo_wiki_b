@@ -1,12 +1,18 @@
 # Data directories
 
-- `data/cn-release-evidence.json`: human-reviewed CN servant release decisions and official evidence.
-- `data/fixtures`: deterministic test input. Never publish fixture data.
-- `data/raw`: upstream Atlas captures; generated and ignored by Git.
-- `data/staged`: normalized Atlas candidates; generated and ignored by Git.
-- `data/normalized`: release-gated CN records; generated and ignored by Git.
-- `data/reports`: normalization and gate reports; generated and ignored by Git.
-- `data/generated`: immutable compiled snapshots; generated and ignored by Git.
-- `rankings/cn`: human-reviewed editorial ranking source files committed to Git.
+Source facts committed to Git:
 
-The production flow is `raw -> staged -> CN release gate -> normalized -> snapshot`. Upstream presence alone never marks a servant as released in CN.
+- `data/cn-release-evidence.json`: reviewed CN servant availability and official release evidence.
+- `data/cn-strengthening-evidence.json`: reviewed CN skill/NP strengthening events and official evidence.
+- `rankings/cn`: reviewed editorial ranking source files.
+- `data/fixtures`: deterministic upstream-shaped test input only.
+
+Generated work products, ignored by Git:
+
+- `data/raw`: upstream captures for normalization.
+- `data/staged`: normalized Atlas candidates.
+- `data/normalized`: release-gated and strengthening-gated servant output.
+- `data/reports`: normalization and evidence-gate reports.
+- `data/generated`: immutable compiled snapshots.
+
+Generated files are never fact owners and must not be edited as source data.

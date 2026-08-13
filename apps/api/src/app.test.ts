@@ -21,7 +21,7 @@ test("filters servants through the HTTP boundary", async () => {
   const app = await buildApp({ config, repository });
   const response = await app.inject({
     method: "GET",
-    url: "/api/v1/servants?class=archer&npColor=quick&npScope=single",
+    url: "/api/v1/servants?class=archer&npColor=quick&npScope=single&npStrengthened=true",
   });
 
   assert.equal(response.statusCode, 200);

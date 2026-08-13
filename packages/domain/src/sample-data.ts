@@ -22,6 +22,25 @@ export const bootstrapServants: Servant[] = [
         effects: ["必中", "诅咒", "按诅咒层数获得特攻"],
       },
     ],
+    strengthenings: [
+      {
+        id: "cn-2025-10-31-baobhan-sith-np",
+        status: "released",
+        target: {
+          type: "noble_phantasm",
+          targetId: "baobhan-sith-quick-single",
+          targetName: "痛幻的哭奏",
+        },
+        releasedAt: "2025-10-31",
+        evidence: {
+          title: "「Lostbelt No.6」通关应援纪念活动",
+          publisher: "命运-冠位指定",
+          url: "https://game.bilibili.com/fgo/news.html",
+          publishedAt: "2025-10-31",
+        },
+        summary: ["常驻追加从者强化任务", "宝具「痛幻的哭奏」获得强化"],
+      },
+    ],
     charge: {
       self: 60,
       team: 0,
@@ -51,6 +70,7 @@ export const bootstrapServants: Servant[] = [
         effects: ["魔性特攻", "宝具后自身退场"],
       },
     ],
+    strengthenings: [],
     charge: {
       self: 60,
       team: 20,
@@ -87,6 +107,7 @@ export const bootstrapServants: Servant[] = [
         effects: ["形态切换", "全体攻击"],
       },
     ],
+    strengthenings: [],
     charge: {
       self: 50,
       team: 0,
@@ -174,11 +195,15 @@ export const bootstrapSnapshot: DatasetSnapshot = {
     publishedAt: "2026-08-13T00:00:00.000Z",
     minimumAppVersion: "0.1.0",
     sourceStatus: "bootstrap",
+    sourceVersions: {
+      releaseEvidence: "bootstrap",
+      strengtheningEvidence: "bootstrap",
+    },
   },
   servants: bootstrapServants,
   rankings: bootstrapRankings,
   changelog: [
     "建立弓阶垂直切片。",
-    "加入职介、宝具范围、色卡、自充和榜单模式筛选。",
+    "加入职介、宝具范围、色卡、自充、强化状态和榜单模式筛选。",
   ],
 };

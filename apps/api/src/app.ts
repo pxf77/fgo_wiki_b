@@ -21,6 +21,7 @@ interface ServantQuerystring {
   class?: string;
   npColor?: string;
   npScope?: string;
+  npStrengthened?: string;
   minSelfCharge?: string;
   releasedOnly?: string;
 }
@@ -46,6 +47,9 @@ function buildServantFilter(query: ServantQuerystring): ServantFilter {
   if (query.class) filter.classes = [query.class as ServantClass];
   if (query.npColor) filter.npColors = [query.npColor as CardColor];
   if (query.npScope) filter.npScopes = [query.npScope as NoblePhantasmScope];
+
+  const npStrengthened = asBoolean(query.npStrengthened);
+  if (npStrengthened !== undefined) filter.npStrengthened = npStrengthened;
 
   if (query.minSelfCharge !== undefined) {
     const minimum = Number(query.minSelfCharge);

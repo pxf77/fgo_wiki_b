@@ -4,6 +4,7 @@ import { buildSnapshot } from "./build-snapshot.js";
 import { normalizeAtlasFile } from "./normalize-atlas.js";
 import { writeCnReleaseGateFiles } from "./release-gate.js";
 import { fetchAtlasCnServants } from "./sources/atlas.js";
+import { writeCnStrengtheningGateFiles } from "./strengthening-gate.js";
 
 const command = process.argv[2] ?? "snapshot";
 const repositoryRoot = fileURLToPath(new URL("../../../", import.meta.url));
@@ -26,11 +27,23 @@ const paths = {
   releaseEvidence: repositoryPath(
     process.env.CN_RELEASE_EVIDENCE_PATH ?? "data/cn-release-evidence.json",
   ),
-  reviewedServants: repositoryPath(
-    process.env.REVIEWED_SERVANTS_PATH ?? "data/normalized/cn/servants.reviewed.json",
+  releaseReviewedServants: repositoryPath(
+    process.env.RELEASE_REVIEWED_SERVANTS_PATH ??
+      "data/normalized/cn/servants.release-reviewed.json",
   ),
   releaseGateReport: repositoryPath(
     process.env.CN_RELEASE_GATE_REPORT_PATH ?? "data/reports/cn-release-gate.json",
+  ),
+  strengtheningEvidence: repositoryPath(
+    process.env.CN_STRENGTHENING_EVIDENCE_PATH ??
+      "data/cn-strengthening-evidence.json",
+  ),
+  reviewedServants: repositoryPath(
+    process.env.REVIEWED_SERVANTS_PATH ?? "data/normalized/cn/servants.reviewed.json",
+  ),
+  strengtheningGateReport: repositoryPath(
+    process.env.CN_STRENGTHENING_GATE_REPORT_PATH ??
+      "data/reports/cn-strengthening-gate.json",
   ),
 };
 
@@ -43,11 +56,17 @@ async function prepareData(rawPath: string): Promise<void> {
   const releaseGate = await writeCnReleaseGateFiles(
     paths.candidates,
     paths.releaseEvidence,
-    paths.reviewedServants,
+    paths.releaseReviewedServants,
     paths.releaseGateReport,
   );
+  const strengtheningGate = await writeCnStrengtheningGateFiles(
+    paths.releaseReviewedServants,
+    paths.strengtheningEvidence,
+    paths.reviewedServants,
+    paths.strengtheningGateReport,
+  );
   console.log(
-    `Prepared ${releaseGate.approved.length} reviewed CN servants from ${normalization.acceptedCount} Atlas candidates; ${releaseGate.blocked.length} candidates remain blocked`,
+    `Prepared ${releaseGate.approved.length} reviewed CN servants and ${strengtheningGate.applied.length} strengthening events from ${normalization.acceptedCount} Atlas candidates; ${releaseGate.blocked.length} candidates remain blocked`,
   );
 }
 
@@ -72,13 +91,21 @@ if (command === "snapshot") {
   );
   console.log(`Normalized ${report.acceptedCount}/${report.inputCount} Atlas servants`);
 } else if (command === "gate-cn") {
-  const report = await writeCnReleaseGateFiles(
+  const releaseReport = await writeCnReleaseGateFiles(
     paths.candidates,
     paths.releaseEvidence,
-    paths.reviewedServants,
+    paths.releaseReviewedServants,
     paths.releaseGateReport,
   );
-  console.log(`CN release gate approved ${report.approved.length} servants`);
+  const strengtheningReport = await writeCnStrengtheningGateFiles(
+    paths.releaseReviewedServants,
+    paths.strengtheningEvidence,
+    paths.reviewedServants,
+    paths.strengtheningGateReport,
+  );
+  console.log(
+    `CN gates approved ${releaseReport.approved.length} servants and applied ${strengtheningReport.applied.length} strengthening events`,
+  );
 } else {
   throw new Error(`Unknown worker command: ${command}`);
 }

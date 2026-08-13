@@ -15,6 +15,9 @@ export function ServantExplorer() {
   const [query, setQuery] = useState("");
   const [color, setColor] = useState<CardColor | "all">("all");
   const [scope, setScope] = useState<NoblePhantasmScope | "all">("all");
+  const [strengthening, setStrengthening] = useState<"all" | "strengthened" | "base">(
+    "all",
+  );
   const [minimumCharge, setMinimumCharge] = useState(0);
   const [mode, setMode] = useState<RankingMode>("farming_90pp");
 
@@ -27,8 +30,11 @@ export function ServantExplorer() {
     if (query) filter.query = query;
     if (color !== "all") filter.npColors = [color];
     if (scope !== "all") filter.npScopes = [scope];
+    if (strengthening !== "all") {
+      filter.npStrengthened = strengthening === "strengthened";
+    }
     return filterServants(bootstrapSnapshot.servants, filter);
-  }, [color, minimumCharge, query, scope]);
+  }, [color, minimumCharge, query, scope, strengthening]);
 
   const ranking = findRanking(bootstrapSnapshot.rankings, mode);
   const rankingByServant = new Map(ranking?.entries.map((entry) => [entry.servantId, entry]));
@@ -68,6 +74,19 @@ export function ServantExplorer() {
             <option value="single">单体</option>
             <option value="aoe">全体</option>
             <option value="support">辅助</option>
+          </select>
+        </label>
+        <label>
+          强化状态
+          <select
+            value={strengthening}
+            onChange={(event) =>
+              setStrengthening(event.target.value as "all" | "strengthened" | "base")
+            }
+          >
+            <option value="all">全部</option>
+            <option value="strengthened">已强化宝具</option>
+            <option value="base">未强化宝具</option>
           </select>
         </label>
         <label>

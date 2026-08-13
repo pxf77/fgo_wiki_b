@@ -13,8 +13,9 @@ The canonical output is a versioned CN data snapshot consumed by Web, PWA and na
 - `packages/damage-engine` owns deterministic calculations.
 - `rankings/cn` owns human-reviewed ranking entries.
 - `data/cn-release-evidence.json` owns CN servant release decisions and their official evidence.
+- `data/cn-strengthening-evidence.json` owns CN skill/NP strengthening events and their official evidence.
 - `data/fixtures` is test input only and must never be published as production data.
-- `apps/worker` owns Atlas ingestion, normalization, release gating and snapshot compilation.
+- `apps/worker` owns Atlas ingestion, normalization, evidence gates and snapshot compilation.
 - `apps/api` owns dynamic HTTP interfaces.
 
 `data/raw`, `data/staged`, `data/normalized`, `data/reports` and `data/generated` are generated work products. Do not edit them as facts or commit them as source data.
@@ -31,4 +32,6 @@ CN release status must be gated by CN official release evidence. Presence in Atl
 
 Use Atlas `collectionNo` as the primary cross-source identity. A name fallback may only be used during an explicit migration and must not become a second identity owner.
 
-The current release gate covers servant availability. Skill and Noble Phantasm strengthening evidence remains an editorial override until a dedicated fact-evidence contract is added; do not claim that strengthening fields are automatically official-gated.
+Release overrides must keep `NoblePhantasm.strengthened` at the base value `false`; the strengthening gate rejects pre-marked input. Only `data/cn-strengthening-evidence.json` may derive a released `true` state and timeline entries.
+
+A released strengthening event must target a release-gated servant and valid NP/skill identity. Announced events may be shown in the timeline but must not mutate current strengthened state.

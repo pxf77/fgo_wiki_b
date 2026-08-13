@@ -29,6 +29,13 @@ export type RankingMode =
 export type Tier = "EX" | "T0" | "T0.5" | "T1" | "T1.5" | "T2" | "T3";
 export type Confidence = "high" | "medium" | "provisional";
 
+export interface OfficialSource {
+  title: string;
+  publisher: string;
+  url: string;
+  publishedAt: string;
+}
+
 export interface RegionRelease {
   region: "CN";
   status: ReleaseStatus;
@@ -47,6 +54,30 @@ export interface NoblePhantasm {
   effects: string[];
 }
 
+export type StrengtheningStatus = "released" | "announced";
+
+export type StrengtheningTarget =
+  | {
+      type: "noble_phantasm";
+      targetId: string;
+      targetName: string;
+    }
+  | {
+      type: "skill";
+      targetId: string;
+      targetName: string;
+      slot: 1 | 2 | 3;
+    };
+
+export interface StrengtheningEvent {
+  id: string;
+  status: StrengtheningStatus;
+  target: StrengtheningTarget;
+  releasedAt: string;
+  evidence: OfficialSource;
+  summary: string[];
+}
+
 export interface ServantCharge {
   self: number;
   team: number;
@@ -62,6 +93,7 @@ export interface Servant {
   rarity: 1 | 2 | 3 | 4 | 5;
   release: RegionRelease;
   noblePhantasms: NoblePhantasm[];
+  strengthenings?: StrengtheningEvent[];
   charge: ServantCharge;
   tags: string[];
   role: Array<"main_dps" | "sub_dps" | "support" | "plug_in" | "sustain">;
@@ -107,6 +139,11 @@ export interface RankingSnapshot {
   entries: RankingEntry[];
 }
 
+export interface DatasetSourceVersions {
+  releaseEvidence: string;
+  strengtheningEvidence: string;
+}
+
 export interface DatasetMetadata {
   region: "CN";
   datasetVersion: string;
@@ -114,6 +151,7 @@ export interface DatasetMetadata {
   publishedAt: string;
   minimumAppVersion: string;
   sourceStatus: "bootstrap" | "reviewed";
+  sourceVersions?: DatasetSourceVersions;
 }
 
 export interface DatasetSnapshot {

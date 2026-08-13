@@ -14,4 +14,8 @@ coverage/
 .vscode/
 apps/mobile/android/
 apps/mobile/ios/
+data/raw/
+data/staged/
+data/normalized/
+data/reports/
 data/generated/

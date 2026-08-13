@@ -1,15 +1,15 @@
-name: CI
+name: Verify CN upstream data
 
 on:
-  push:
-    branches: [main]
-  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 3 * * *"
 
 permissions:
   contents: read
 
 jobs:
-  verify:
+  verify-upstream:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -21,12 +21,13 @@ jobs:
         with:
           node-version: 24
       - run: pnpm install --frozen-lockfile
-      - run: pnpm data:prepare:fixture
-      - run: pnpm typecheck
-      - run: pnpm test
-      - run: pnpm build
+      - run: pnpm data:sync:atlas
+      - run: pnpm data:prepare
       - run: pnpm snapshot:build
       - uses: actions/upload-artifact@v4
         with:
-          name: cn-snapshot
-          path: data/generated/
+          name: cn-upstream-verification
+          path: |
+            data/reports/
+            data/normalized/cn/servants.reviewed.json
+            data/generated/

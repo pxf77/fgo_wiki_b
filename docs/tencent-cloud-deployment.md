@@ -51,18 +51,38 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 
 Nginx 只代理 `api.example.cn`。Web 的 `out/` 目录由 CI 上传 COS。
 
-## 5. 快照发布顺序
+## 5. 数据核验与快照发布顺序
 
-1. `pnpm snapshot:build`
+候选数据先经过国服官方实装证据门禁：
+
+```bash
+pnpm data:sync:atlas
+pnpm data:prepare
+pnpm snapshot:build
+```
+
+正式发布顺序：
+
+1. 审阅 `data/reports/atlas-normalization.json` 和 `data/reports/cn-release-gate.json`。
 2. 上传 `data/generated/<version>/`，设置一年缓存。
 3. 确认 CDN 可读取新版本。
 4. 最后覆盖 `snapshots/latest.json`，设置 60 秒缓存。
 
-发布脚本见 `infra/scripts/publish-snapshot.sh`。生产环境可将脚本中的上传命令替换为腾讯云 CLI、COSCMD 或 CI 官方 Action。
+发布脚本见 `infra/scripts/publish-snapshot.sh`。生产环境可将脚本中的上传命令替换为腾讯云 CLI、COSCMD 或 CI 官方 Action。GitHub 的定时核验工作流只生成 Artifact，不直接更新 COS。
 
-## 6. 日志与健康检查
+## 6. Worker 容器
+
+工具 Profile 会将宿主机 `data/` 挂载到 `/workspace/data`，以便保留原始数据、门禁报告和生成快照：
+
+```bash
+docker compose --profile tools run --rm worker node apps/worker/dist/index.js sync-atlas
+docker compose --profile tools run --rm worker node apps/worker/dist/index.js prepare-live
+docker compose --profile tools run --rm worker node apps/worker/dist/index.js snapshot
+```
+
+## 7. 日志与健康检查
 
 - API：`GET /health`
 - 容器日志输出 JSON 到 stdout，由 CLS Agent 采集。
-- 对 API 5xx、Worker 同步失败和快照发布时间过旧设置告警。
+- 对 API 5xx、Worker 同步失败、门禁失败和快照发布时间过旧设置告警。
 - 数据库只开放 VPC 内网端口。

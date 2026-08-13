@@ -17,7 +17,11 @@
     "test": "turbo run test",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "snapshot:build": "pnpm --filter @fgo-wiki/worker snapshot",
+    "data:sync:atlas": "pnpm build:packages && pnpm --filter @fgo-wiki/worker sync:atlas",
+    "data:prepare": "pnpm build:packages && pnpm --filter @fgo-wiki/worker data:prepare",
+    "data:prepare:fixture": "pnpm build:packages && pnpm --filter @fgo-wiki/worker data:prepare:fixture",
+    "data:verify": "pnpm data:prepare:fixture && pnpm snapshot:build",
+    "snapshot:build": "pnpm build:packages && pnpm --filter @fgo-wiki/worker snapshot",
     "db:generate": "pnpm --filter @fgo-wiki/database db:generate",
     "db:migrate": "pnpm --filter @fgo-wiki/database db:migrate"
   },

@@ -8,6 +8,7 @@ import {
   bootstrapServants,
   type DatasetSnapshot,
   type RankingSnapshot,
+  type Servant,
 } from "@fgo-wiki/domain";
 
 const compress = promisify(brotliCompress);
@@ -34,8 +35,44 @@ function resolveRepositoryPath(path: string): string {
   return resolve(repositoryRoot, path);
 }
 
-function validateRankingReferences(rankings: readonly RankingSnapshot[]): void {
-  const servantIds = new Set(bootstrapServants.map((servant) => servant.id));
+async function loadServants(): Promise<{
+  servants: Servant[];
+  sourceStatus: DatasetSnapshot["metadata"]["sourceStatus"];
+}> {
+  const reviewedPath = resolveRepositoryPath(
+    process.env.REVIEWED_SERVANTS_PATH ?? "data/normalized/cn/servants.reviewed.json",
+  );
+  try {
+    const value: unknown = await readJson(reviewedPath);
+    if (!Array.isArray(value)) {
+      throw new TypeError("Reviewed CN servants must be an array");
+    }
+    return {
+      servants: value as Servant[],
+      sourceStatus: "reviewed",
+    };
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code !== "ENOENT") {
+      throw error;
+    }
+    if (process.env.ALLOW_BOOTSTRAP_DATA !== "true") {
+      throw new Error(
+        `Reviewed CN servants not found at ${reviewedPath}. Run pnpm data:prepare:fixture for local verification or pnpm data:prepare after syncing Atlas.`,
+      );
+    }
+    return {
+      servants: bootstrapServants,
+      sourceStatus: "bootstrap",
+    };
+  }
+}
+
+function validateRankingReferences(
+  rankings: readonly RankingSnapshot[],
+  servants: readonly Servant[],
+): void {
+  const servantIds = new Set(servants.map((servant) => servant.id));
   for (const ranking of rankings) {
     for (const entry of ranking.entries) {
       if (!servantIds.has(entry.servantId)) {
@@ -54,8 +91,9 @@ export async function buildSnapshot(): Promise<string> {
   const rankings = await Promise.all(
     rankingFiles.map((file) => readJson<RankingSnapshot>(join(rankingDirectory, file))),
   );
+  const { servants, sourceStatus } = await loadServants();
 
-  validateRankingReferences(rankings);
+  validateRankingReferences(rankings, servants);
   const datasetVersion = `${pointer.asOf}-r${pointer.revision}`;
   const publishedAt = process.env.PUBLISHED_AT ?? new Date().toISOString();
   const snapshot: DatasetSnapshot = {
@@ -65,13 +103,15 @@ export async function buildSnapshot(): Promise<string> {
       rankingRevision: pointer.revision,
       publishedAt,
       minimumAppVersion: "0.1.0",
-      sourceStatus: "reviewed",
+      sourceStatus,
     },
-    servants: bootstrapServants,
+    servants,
     rankings,
     changelog: [
       `发布国服数据快照 ${datasetVersion}。`,
-      "弓阶垂直切片进入人工审核榜单源。",
+      sourceStatus === "reviewed"
+        ? "从者实装状态已通过版本化国服官方证据门禁。"
+        : "当前快照使用开发用 Bootstrap 数据。",
     ],
   };
   assertDatasetSnapshot(snapshot);

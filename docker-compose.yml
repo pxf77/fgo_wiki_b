@@ -51,8 +51,11 @@ services:
       NODE_ENV: production
       SNAPSHOT_OUTPUT_DIR: /workspace/data/generated
       ATLAS_CN_SERVANTS_URL: https://api.atlasacademy.io/export/CN/nice_servant.json
+      ATLAS_RAW_PATH: /workspace/data/raw/atlas-cn/nice_servant.json
+      ATLAS_CANDIDATE_PATH: /workspace/data/staged/atlas-cn/servant-candidates.json
+      REVIEWED_SERVANTS_PATH: /workspace/data/normalized/cn/servants.reviewed.json
     volumes:
-      - ./data/generated:/workspace/data/generated
+      - ./data:/workspace/data
     profiles: ["tools"]
 
 volumes:

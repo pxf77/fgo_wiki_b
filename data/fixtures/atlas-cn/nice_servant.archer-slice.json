@@ -1,0 +1,117 @@
+[
+  {
+    "id": 303110,
+    "collectionNo": 311,
+    "name": "妖精骑士崔斯坦",
+    "originalName": "妖精騎士トリスタン",
+    "className": "archer",
+    "rarity": 4,
+    "noblePhantasms": [
+      {
+        "id": 1031101,
+        "num": 1,
+        "npNum": 1,
+        "card": "quick",
+        "name": "痛幻的哭奏",
+        "strengthStatus": 2,
+        "npDistribution": [40, 90, 140, 190, 230, 310],
+        "functions": [
+          {
+            "funcType": "damageNp",
+            "funcTargetType": "enemy"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": 303940,
+    "collectionNo": 394,
+    "name": "托勒密",
+    "originalName": "プトレマイオス",
+    "className": "archer",
+    "rarity": 5,
+    "noblePhantasms": [
+      {
+        "id": 1039401,
+        "num": 1,
+        "npNum": 1,
+        "card": "buster",
+        "name": "月は知らず、久遠の光",
+        "strengthStatus": 0,
+        "npDistribution": [160, 330, 510],
+        "functions": [
+          {
+            "funcType": "damageNp",
+            "funcTargetType": "enemy"
+          }
+        ]
+      },
+      {
+        "id": 1039402,
+        "num": 2,
+        "npNum": 2,
+        "card": "arts",
+        "name": "王之书库",
+        "strengthStatus": 0,
+        "npDistribution": [60, 130, 200, 260, 350],
+        "functions": [
+          {
+            "funcType": "damageNp",
+            "funcTargetType": "enemyAll"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": 304270,
+    "collectionNo": 427,
+    "name": "图坦卡蒙",
+    "originalName": "ツタンカーメン",
+    "className": "archer",
+    "rarity": 5,
+    "noblePhantasms": [
+      {
+        "id": 1042701,
+        "num": 1,
+        "npNum": 1,
+        "card": "arts",
+        "name": "暝暗之匣",
+        "strengthStatus": 0,
+        "npDistribution": [100, 200, 300, 400],
+        "functions": [
+          {
+            "funcType": "damageNp",
+            "funcTargetType": "enemy"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": 309990,
+    "collectionNo": 999,
+    "name": "未实装测试从者",
+    "originalName": "Unreleased Fixture Servant",
+    "className": "archer",
+    "rarity": 5,
+    "noblePhantasms": [
+      {
+        "id": 1099901,
+        "num": 1,
+        "npNum": 1,
+        "card": "buster",
+        "name": "测试宝具",
+        "strengthStatus": 0,
+        "npDistribution": [100],
+        "functions": [
+          {
+            "funcType": "damageNp",
+            "funcTargetType": "enemyAll"
+          }
+        ]
+      }
+    ]
+  }
+]

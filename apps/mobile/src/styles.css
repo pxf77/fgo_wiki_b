@@ -1,0 +1,23 @@
+:root { font-family: Inter, "PingFang SC", sans-serif; color: #1b1713; background: #f3eee6; }
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 320px; }
+button, select { font: inherit; }
+main { min-height: 100vh; padding: max(24px, env(safe-area-inset-top)) 16px max(30px, env(safe-area-inset-bottom)); }
+.mobile-header { display: flex; justify-content: space-between; gap: 20px; align-items: center; }
+.mobile-header p { margin: 0 0 4px; color: #8c3526; font-size: 0.75rem; font-weight: 700; }
+.mobile-header h1 { margin: 0; font: 2rem Georgia, "Songti SC", serif; }
+.mobile-header button, .favorite { border: 0; border-radius: 999px; background: #1b1713; color: white; padding: 10px 14px; }
+.status-card { margin: 22px 0; padding: 16px; background: #ded3c2; border-radius: 16px; display: grid; gap: 5px; }
+.status-card span { color: #62584e; font-size: 0.82rem; }
+.mobile-filters { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+.mobile-filters label { display: grid; gap: 6px; color: #62584e; font-size: 0.75rem; font-weight: 700; }
+.mobile-filters select { min-height: 42px; border: 1px solid #c6b9a7; background: white; border-radius: 10px; padding: 0 10px; }
+.mobile-list { display: grid; gap: 14px; }
+.mobile-card-shell { position: relative; }
+.favorite { position: absolute; z-index: 2; right: 16px; top: 16px; background: #8c3526; padding: 7px 11px; font-size: 0.75rem; }
+.mobile-servant-card { min-height: 260px; padding: 20px; border-radius: 20px; border: 1px solid #d2c5b4; background: #fffdf8; }
+.mobile-servant-card header { display: flex; justify-content: space-between; padding-right: 78px; color: #71665b; font-size: 0.75rem; }
+.mobile-servant-card header strong { color: #a43827; }
+.mobile-servant-card h3 { margin: 24px 0 10px; font: 1.35rem Georgia, "Songti SC", serif; }
+.mobile-servant-card p { color: #5e554c; line-height: 1.55; }
+.mobile-servant-card div { color: #8c3526; font-size: 0.78rem; line-height: 1.6; }

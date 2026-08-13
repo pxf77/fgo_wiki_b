@@ -1,0 +1,11 @@
+:root { font-family: Inter, "PingFang SC", sans-serif; color: #171717; background: #f4f1ea; }
+body { margin: 0; }
+main { max-width: 960px; margin: 0 auto; padding: 48px 24px; }
+.hero { border-bottom: 1px solid #c9c1b4; padding-bottom: 24px; }
+.hero p, .hero span, small { color: #6b6256; }
+.queue { display: grid; gap: 16px; margin-top: 24px; }
+article { background: white; border: 1px solid #d8d0c3; border-radius: 14px; padding: 20px; display: flex; justify-content: space-between; gap: 24px; }
+article h2 { margin: 8px 0; }
+.actions { display: flex; gap: 8px; align-items: center; }
+button { border: 1px solid #403a32; border-radius: 8px; padding: 8px 14px; background: white; cursor: pointer; }
+button:first-child { background: #26231f; color: white; }

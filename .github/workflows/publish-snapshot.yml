@@ -1,0 +1,30 @@
+name: Publish CN snapshot
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.17.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --no-frozen-lockfile
+      - run: pnpm snapshot:build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cn-snapshot
+          path: data/generated/
+      - name: COS upload boundary
+        run: |
+          echo "Configure Tencent Cloud credentials and replace this step with the approved COS upload action."
+          echo "Publish immutable version files first and latest.json last."

@@ -1,0 +1,36 @@
+{
+  "name": "@fgo-wiki/mobile",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite --host 0.0.0.0 --port 4173",
+    "preview": "vite preview --host 0.0.0.0 --port 4173",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "node --test",
+    "cap:add:android": "cap add android",
+    "cap:add:ios": "cap add ios",
+    "cap:sync": "cap sync",
+    "cap:open:android": "cap open android",
+    "cap:open:ios": "cap open ios"
+  },
+  "dependencies": {
+    "@capacitor/core": "^8.4.1",
+    "@fgo-wiki/api-client": "workspace:*",
+    "@fgo-wiki/domain": "workspace:*",
+    "@fgo-wiki/filter-engine": "workspace:*",
+    "@fgo-wiki/ranking-engine": "workspace:*",
+    "@fgo-wiki/shared-ui": "workspace:*",
+    "@fgo-wiki/snapshot-client": "workspace:*",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
+  "devDependencies": {
+    "@capacitor/android": "^8.4.1",
+    "@capacitor/cli": "^8.4.1",
+    "@capacitor/ios": "^8.4.1",
+    "@vitejs/plugin-react": "^6.0.4",
+    "vite": "^8.1.5"
+  }
+}

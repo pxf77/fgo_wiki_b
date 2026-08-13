@@ -1,0 +1,23 @@
+{
+  "name": "@fgo-wiki/admin",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite --host 0.0.0.0 --port 4174",
+    "preview": "vite preview --host 0.0.0.0 --port 4174",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@fgo-wiki/domain": "workspace:*",
+    "@fgo-wiki/ranking-engine": "workspace:*",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^6.0.4",
+    "vite": "^8.1.5"
+  }
+}

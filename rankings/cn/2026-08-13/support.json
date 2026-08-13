@@ -1,0 +1,14 @@
+{
+  "id": "cn-2026-08-13-support-r1",
+  "region": "CN",
+  "mode": "support",
+  "asOf": "2026-08-13",
+  "revision": 1,
+  "assumptions": {
+    "npLevel": 1,
+    "swapAllowed": true,
+    "craftEssenceProfile": "none",
+    "eventDamageBonus": false
+  },
+  "entries": []
+}

@@ -1,7 +1,8 @@
-import { brotliCompress } from "node:zlib";
-import { promisify } from "node:util";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import { promisify } from "node:util";
+import { brotliCompress } from "node:zlib";
 import {
   assertDatasetSnapshot,
   bootstrapServants,
@@ -10,6 +11,7 @@ import {
 } from "@fgo-wiki/domain";
 
 const compress = promisify(brotliCompress);
+const repositoryRoot = fileURLToPath(new URL("../../../", import.meta.url));
 
 interface LatestRankingPointer {
   asOf: string;
@@ -28,6 +30,10 @@ async function writeJson(path: string, value: unknown): Promise<void> {
   await writeFile(`${path}.br`, await compress(Buffer.from(serialized)));
 }
 
+function resolveRepositoryPath(path: string): string {
+  return resolve(repositoryRoot, path);
+}
+
 function validateRankingReferences(rankings: readonly RankingSnapshot[]): void {
   const servantIds = new Set(bootstrapServants.map((servant) => servant.id));
   for (const ranking of rankings) {
@@ -40,8 +46,8 @@ function validateRankingReferences(rankings: readonly RankingSnapshot[]): void {
 }
 
 export async function buildSnapshot(): Promise<string> {
-  const rankingRoot = resolve(process.env.RANKINGS_ROOT ?? "rankings/cn");
-  const outputRoot = resolve(process.env.SNAPSHOT_OUTPUT_DIR ?? "data/generated");
+  const rankingRoot = resolveRepositoryPath(process.env.RANKINGS_ROOT ?? "rankings/cn");
+  const outputRoot = resolveRepositoryPath(process.env.SNAPSHOT_OUTPUT_DIR ?? "data/generated");
   const pointer = await readJson<LatestRankingPointer>(join(rankingRoot, "latest.json"));
   const rankingDirectory = join(rankingRoot, pointer.directory);
   const rankingFiles = ["farming-90pp.json", "high-difficulty.json", "support.json"];

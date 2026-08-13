@@ -7,9 +7,11 @@ import {
   assertDatasetSnapshot,
   bootstrapServants,
   type DatasetSnapshot,
+  type DatasetSourceVersions,
   type RankingSnapshot,
   type Servant,
 } from "@fgo-wiki/domain";
+import { asRecord, requireString } from "./json-validation.js";
 
 const compress = promisify(brotliCompress);
 const repositoryRoot = fileURLToPath(new URL("../../../", import.meta.url));
@@ -18,6 +20,17 @@ interface LatestRankingPointer {
   asOf: string;
   revision: number;
   directory: string;
+}
+
+export interface BuildSnapshotOptions {
+  rankingRoot?: string;
+  outputRoot?: string;
+  reviewedServantsPath?: string;
+  releaseGateReportPath?: string;
+  strengtheningGateReportPath?: string;
+  publicBaseUrl?: string;
+  publishedAt?: string;
+  allowBootstrapData?: boolean;
 }
 
 async function readJson<T>(path: string): Promise<T> {
@@ -35,12 +48,22 @@ function resolveRepositoryPath(path: string): string {
   return resolve(repositoryRoot, path);
 }
 
-async function loadServants(): Promise<{
+function configuredPath(
+  explicitValue: string | undefined,
+  environmentValue: string | undefined,
+  fallback: string,
+): string {
+  return resolveRepositoryPath(explicitValue ?? environmentValue ?? fallback);
+}
+
+async function loadServants(options: BuildSnapshotOptions): Promise<{
   servants: Servant[];
   sourceStatus: DatasetSnapshot["metadata"]["sourceStatus"];
 }> {
-  const reviewedPath = resolveRepositoryPath(
-    process.env.REVIEWED_SERVANTS_PATH ?? "data/normalized/cn/servants.reviewed.json",
+  const reviewedPath = configuredPath(
+    options.reviewedServantsPath,
+    process.env.REVIEWED_SERVANTS_PATH,
+    "data/normalized/cn/servants.reviewed.json",
   );
   try {
     const value: unknown = await readJson(reviewedPath);
@@ -56,7 +79,9 @@ async function loadServants(): Promise<{
     if (code !== "ENOENT") {
       throw error;
     }
-    if (process.env.ALLOW_BOOTSTRAP_DATA !== "true") {
+    const allowBootstrapData =
+      options.allowBootstrapData ?? process.env.ALLOW_BOOTSTRAP_DATA === "true";
+    if (!allowBootstrapData) {
       throw new Error(
         `Reviewed CN servants not found at ${reviewedPath}. Run pnpm data:prepare:fixture for local verification or pnpm data:prepare after syncing Atlas.`,
       );
@@ -66,6 +91,42 @@ async function loadServants(): Promise<{
       sourceStatus: "bootstrap",
     };
   }
+}
+
+function readEvidenceVersion(value: unknown, context: string): string {
+  return requireString(asRecord(value, context), "evidenceVersion", context);
+}
+
+async function loadSourceVersions(
+  sourceStatus: DatasetSnapshot["metadata"]["sourceStatus"],
+  options: BuildSnapshotOptions,
+): Promise<DatasetSourceVersions | undefined> {
+  if (sourceStatus === "bootstrap") {
+    return undefined;
+  }
+
+  const releaseGateReportPath = configuredPath(
+    options.releaseGateReportPath,
+    process.env.CN_RELEASE_GATE_REPORT_PATH,
+    "data/reports/cn-release-gate.json",
+  );
+  const strengtheningGateReportPath = configuredPath(
+    options.strengtheningGateReportPath,
+    process.env.CN_STRENGTHENING_GATE_REPORT_PATH,
+    "data/reports/cn-strengthening-gate.json",
+  );
+  const [releaseReport, strengtheningReport] = await Promise.all([
+    readJson<unknown>(releaseGateReportPath),
+    readJson<unknown>(strengtheningGateReportPath),
+  ]);
+
+  return {
+    releaseEvidence: readEvidenceVersion(releaseReport, "CN release gate report"),
+    strengtheningEvidence: readEvidenceVersion(
+      strengtheningReport,
+      "CN strengthening gate report",
+    ),
+  };
 }
 
 function validateRankingReferences(
@@ -82,20 +143,30 @@ function validateRankingReferences(
   }
 }
 
-export async function buildSnapshot(): Promise<string> {
-  const rankingRoot = resolveRepositoryPath(process.env.RANKINGS_ROOT ?? "rankings/cn");
-  const outputRoot = resolveRepositoryPath(process.env.SNAPSHOT_OUTPUT_DIR ?? "data/generated");
+export async function buildSnapshot(options: BuildSnapshotOptions = {}): Promise<string> {
+  const rankingRoot = configuredPath(
+    options.rankingRoot,
+    process.env.RANKINGS_ROOT,
+    "rankings/cn",
+  );
+  const outputRoot = configuredPath(
+    options.outputRoot,
+    process.env.SNAPSHOT_OUTPUT_DIR,
+    "data/generated",
+  );
   const pointer = await readJson<LatestRankingPointer>(join(rankingRoot, "latest.json"));
   const rankingDirectory = join(rankingRoot, pointer.directory);
   const rankingFiles = ["farming-90pp.json", "high-difficulty.json", "support.json"];
   const rankings = await Promise.all(
     rankingFiles.map((file) => readJson<RankingSnapshot>(join(rankingDirectory, file))),
   );
-  const { servants, sourceStatus } = await loadServants();
+  const { servants, sourceStatus } = await loadServants(options);
+  const sourceVersions = await loadSourceVersions(sourceStatus, options);
 
   validateRankingReferences(rankings, servants);
   const datasetVersion = `${pointer.asOf}-r${pointer.revision}`;
-  const publishedAt = process.env.PUBLISHED_AT ?? new Date().toISOString();
+  const publishedAt =
+    options.publishedAt ?? process.env.PUBLISHED_AT ?? new Date().toISOString();
   const snapshot: DatasetSnapshot = {
     metadata: {
       region: "CN",
@@ -104,6 +175,7 @@ export async function buildSnapshot(): Promise<string> {
       publishedAt,
       minimumAppVersion: "0.1.0",
       sourceStatus,
+      ...(sourceVersions ? { sourceVersions } : {}),
     },
     servants,
     rankings,
@@ -112,6 +184,9 @@ export async function buildSnapshot(): Promise<string> {
       sourceStatus === "reviewed"
         ? "从者实装状态已通过版本化国服官方证据门禁。"
         : "当前快照使用开发用 Bootstrap 数据。",
+      sourceStatus === "reviewed"
+        ? "技能与宝具强化时间线已通过独立国服强化事件证据门禁。"
+        : "Bootstrap 数据包含开发用强化时间线。",
     ],
   };
   assertDatasetSnapshot(snapshot);
@@ -124,14 +199,21 @@ export async function buildSnapshot(): Promise<string> {
     await writeJson(join(versionDirectory, "rankings", `${ranking.mode}.json`), ranking);
   }
 
-  const publicBaseUrl = (process.env.SNAPSHOT_PUBLIC_BASE_URL ?? "/snapshots").replace(/\/$/, "");
-  const releasePointer = {
+  const publicBaseUrl = (
+    options.publicBaseUrl ??
+    process.env.SNAPSHOT_PUBLIC_BASE_URL ??
+    "/snapshots"
+  ).replace(/\/$/, "");
+  const releaseDescriptor = {
     datasetVersion,
     snapshotUrl: `${publicBaseUrl}/${datasetVersion}/snapshot.json`,
     minimumAppVersion: snapshot.metadata.minimumAppVersion,
     publishedAt,
+    sourceStatus,
+    ...(sourceVersions ? { sourceVersions } : {}),
   };
-  await writeJson(join(outputRoot, "latest.json"), releasePointer);
+  await writeJson(join(versionDirectory, "release.json"), releaseDescriptor);
+  await writeJson(join(outputRoot, "latest.json"), releaseDescriptor);
   await writeJson(join(outputRoot, "latest", "snapshot.json"), snapshot);
 
   return versionDirectory;

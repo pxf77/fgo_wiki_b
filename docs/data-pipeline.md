@@ -60,6 +60,12 @@ data/reports/cn-release-gate.json
 data/reports/cn-strengthening-gate.json
 ```
 
+## Shared source validation
+
+Release and strengthening manifests use the same `assertOfficialSource` boundary. The shared rule validates required source fields, ISO-compatible publication dates, HTTPS, and the approved CN publishing host set.
+
+Do not copy the host set or source parser into another gate. A new source policy must be changed once in `apps/worker/src/official-evidence.ts` and covered through each consuming gate.
+
 ## Release gate rules
 
 A servant is emitted from the release gate only when all conditions pass:
@@ -67,11 +73,12 @@ A servant is emitted from the release gate only when all conditions pass:
 1. Atlas exposes a playable candidate with a positive `collectionNo`.
 2. `collectionNo` exists exactly once in the reviewed CN release manifest.
 3. Atlas class and rarity match the reviewed expectation.
-4. The evidence URL uses HTTPS and an approved CN publishing host.
+4. The source URL uses HTTPS and an approved CN publishing host.
+5. Each curated NP keeps the base `strengthened=false` state.
 
 Candidates without reviewed release evidence remain in the blocked report. They do not fail the whole job because Atlas may contain future or otherwise irrelevant records. A reviewed entry that cannot find its Atlas candidate does fail the job because that indicates stale identity data or an upstream contract change.
 
-The release manifest carries only the base `NoblePhantasm.strengthened=false` value required by the current public NP contract. The strengthening gate rejects any pre-marked `true` value, resets the timeline boundary, and is the only stage allowed to derive a released `true` state.
+The strengthening gate remains the only stage allowed to derive a released `NoblePhantasm.strengthened=true` state.
 
 ## Strengthening gate rules
 
@@ -83,14 +90,43 @@ A strengthening event is applied only when all conditions pass:
 4. A skill event declares a stable `targetId`, display name and slot 1–3.
 5. The event does not predate the servant's CN release.
 6. A `released` event is not dated after the manifest review time.
-7. The evidence URL uses HTTPS and an approved CN publishing host.
+7. The source URL uses HTTPS and an approved CN publishing host.
 
 Released NP events derive `NoblePhantasm.strengthened=true`. Announced events enter the timeline but do not change the current strengthened state. Skill events are exposed in the same timeline even though a full public skill model is not yet part of the P0 domain contract.
+
+## Snapshot publication contract
+
+A reviewed snapshot must read evidence versions from the generated gate reports, rather than copying them into another source file:
+
+```json
+{
+  "sourceStatus": "reviewed",
+  "sourceVersions": {
+    "releaseEvidence": "2026-08-13-r1",
+    "strengtheningEvidence": "2026-08-13-strengthening-r1"
+  }
+}
+```
+
+The same `sourceStatus` and `sourceVersions` are written to:
+
+```text
+data/generated/<dataset-version>/metadata.json
+data/generated/<dataset-version>/snapshot.json
+data/generated/<dataset-version>/release.json
+data/generated/latest.json
+```
+
+`release.json` is the immutable version-scoped release descriptor. `latest.json` is the short-cache pointer and must be published only after the immutable version directory is available.
+
+A reviewed snapshot without both evidence versions fails validation. Bootstrap snapshots may omit them.
 
 ## Current boundary
 
 This iteration independently gates **servant availability** and **skill/NP strengthening events**. Curated charge, tags, NP names and effect summaries remain reviewed overrides. Exact skill effects and full NP effect functions are not yet derived from Atlas functions, and should not be described as fully automatic facts.
 
+The dataset path still uses the ranking date/revision as its external version. Evidence versions are now visible in metadata and release descriptors; changing the path identity when only evidence revisions change remains a separate release-versioning decision.
+
 ## Publication safety
 
-The scheduled workflow only builds and uploads verification artifacts. It does not update editorial tiers or publish to COS. The manual publish workflow retains a separate COS upload boundary so `latest.json` can be uploaded only after immutable version objects have succeeded.
+The scheduled workflow only builds and uploads verification artifacts. It does not update editorial tiers or publish to COS. The manual publish workflow retains a separate COS upload boundary so immutable version objects, including `release.json`, succeed before `latest.json` is replaced.

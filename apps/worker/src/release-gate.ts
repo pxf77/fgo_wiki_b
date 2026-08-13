@@ -2,18 +2,20 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import type {
   NoblePhantasm,
+  OfficialSource,
   Servant,
   ServantCharge,
   ServantClass,
 } from "@fgo-wiki/domain";
+import {
+  asRecord,
+  requireDate,
+  requireNumber,
+  requireString,
+  requireStringArray,
+} from "./json-validation.js";
 import type { AtlasServantCandidate } from "./normalize-atlas.js";
-
-export interface OfficialEvidenceSource {
-  title: string;
-  publisher: string;
-  url: string;
-  publishedAt: string;
-}
+import { assertOfficialSource } from "./official-evidence.js";
 
 export interface CnReleaseEvidenceEntry {
   collectionNo: number;
@@ -27,7 +29,7 @@ export interface CnReleaseEvidenceEntry {
   release: {
     status: "released" | "announced";
     releasedAt: string;
-    evidence: OfficialEvidenceSource;
+    evidence: OfficialSource;
   };
   overrides: {
     charge: ServantCharge;
@@ -63,15 +65,6 @@ export interface CnReleaseGateReport {
   }>;
 }
 
-type JsonRecord = Record<string, unknown>;
-
-const allowedEvidenceHosts = new Set([
-  "bilibili.com",
-  "www.bilibili.com",
-  "game.bilibili.com",
-  "taptap.cn",
-  "www.taptap.cn",
-]);
 const servantClasses = new Set<ServantClass>([
   "saber",
   "archer",
@@ -93,57 +86,6 @@ const cardColors = new Set(["quick", "arts", "buster"]);
 const noblePhantasmScopes = new Set(["single", "aoe", "support", "special"]);
 const servantRoles = new Set(["main_dps", "sub_dps", "support", "plug_in", "sustain"]);
 
-function asRecord(value: unknown, context: string): JsonRecord {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    throw new TypeError(`${context} must be an object`);
-  }
-  return value as JsonRecord;
-}
-
-function requireString(record: JsonRecord, key: string, context: string): string {
-  const value = record[key];
-  if (typeof value !== "string" || value.trim().length === 0) {
-    throw new TypeError(`${context}.${key} must be a non-empty string`);
-  }
-  return value.trim();
-}
-
-function requireNumber(record: JsonRecord, key: string, context: string): number {
-  const value = record[key];
-  if (typeof value !== "number" || !Number.isFinite(value)) {
-    throw new TypeError(`${context}.${key} must be a finite number`);
-  }
-  return value;
-}
-
-function requireStringArray(record: JsonRecord, key: string, context: string): string[] {
-  const value = record[key];
-  if (!Array.isArray(value) || value.some((entry) => typeof entry !== "string")) {
-    throw new TypeError(`${context}.${key} must be a string array`);
-  }
-  return value.map((entry) => entry.trim()).filter(Boolean);
-}
-
-function requireDate(value: string, context: string): void {
-  if (Number.isNaN(Date.parse(value))) {
-    throw new TypeError(`${context} must be an ISO-compatible date`);
-  }
-}
-
-function assertOfficialEvidence(value: unknown, context: string): asserts value is OfficialEvidenceSource {
-  const record = asRecord(value, context);
-  requireString(record, "title", context);
-  requireString(record, "publisher", context);
-  const urlValue = requireString(record, "url", context);
-  const publishedAt = requireString(record, "publishedAt", context);
-  requireDate(publishedAt, `${context}.publishedAt`);
-
-  const url = new URL(urlValue);
-  if (url.protocol !== "https:" || !allowedEvidenceHosts.has(url.hostname.toLowerCase())) {
-    throw new TypeError(`${context}.url is not an approved CN official source`);
-  }
-}
-
 function assertNoblePhantasm(value: unknown, context: string): asserts value is NoblePhantasm {
   const record = asRecord(value, context);
   requireString(record, "id", context);
@@ -156,8 +98,10 @@ function assertNoblePhantasm(value: unknown, context: string): asserts value is 
   if (!noblePhantasmScopes.has(scope)) {
     throw new TypeError(`${context}.scope is invalid`);
   }
-  if (typeof record.strengthened !== "boolean") {
-    throw new TypeError(`${context}.strengthened must be boolean`);
+  if (record.strengthened !== false) {
+    throw new TypeError(
+      `${context}.strengthened must be false before the CN strengthening gate`,
+    );
   }
   requireStringArray(record, "effects", context);
   if (record.hitCount !== undefined && typeof record.hitCount !== "number") {
@@ -200,7 +144,7 @@ function assertEvidenceEntry(value: unknown, index: number): asserts value is Cn
   }
   const releasedAt = requireString(release, "releasedAt", `${context}.release`);
   requireDate(releasedAt, `${context}.release.releasedAt`);
-  assertOfficialEvidence(release.evidence, `${context}.release.evidence`);
+  assertOfficialSource(release.evidence, `${context}.release.evidence`);
 
   const overrides = asRecord(record.overrides, `${context}.overrides`);
   const charge = asRecord(overrides.charge, `${context}.overrides.charge`);
@@ -249,7 +193,21 @@ export function assertCnReleaseEvidenceManifest(
 }
 
 function uniqueStrings(values: readonly (string | undefined)[]): string[] {
-  return [...new Set(values.filter((value): value is string => value !== undefined && value.length > 0))];
+  return [
+    ...new Set(
+      values.filter((value): value is string => value !== undefined && value.length > 0),
+    ),
+  ];
+}
+
+function cloneNoblePhantasm(noblePhantasm: NoblePhantasm): NoblePhantasm {
+  return {
+    ...noblePhantasm,
+    effects: [...noblePhantasm.effects],
+    ...(noblePhantasm.targetTraits
+      ? { targetTraits: [...noblePhantasm.targetTraits] }
+      : {}),
+  };
 }
 
 export function applyCnReleaseGate(
@@ -260,6 +218,9 @@ export function applyCnReleaseGate(
   const manifest = evidenceValue;
   const candidatesByCollectionNo = new Map(
     candidates.map((candidate) => [candidate.collectionNo, candidate] as const),
+  );
+  const collectionNoByServantId = new Map(
+    manifest.entries.map((entry) => [entry.servantId, entry.collectionNo] as const),
   );
   const evidenceCollectionNumbers = new Set<number>();
   const servantIds = new Set<string>();
@@ -289,7 +250,7 @@ export function applyCnReleaseGate(
       );
     }
 
-    const servant: Servant = {
+    servants.push({
       id: entry.servantId,
       atlasId: candidate.atlasId,
       name: entry.displayName,
@@ -306,13 +267,13 @@ export function applyCnReleaseGate(
         releasedAt: entry.release.releasedAt,
         evidenceUrl: entry.release.evidence.url,
       },
-      noblePhantasms: entry.overrides.noblePhantasms,
-      charge: entry.overrides.charge,
+      noblePhantasms: entry.overrides.noblePhantasms.map(cloneNoblePhantasm),
+      strengthenings: [],
+      charge: { ...entry.overrides.charge },
       tags: uniqueStrings(entry.overrides.tags),
-      role: entry.overrides.role,
+      role: [...entry.overrides.role],
       updatedAt: manifest.reviewedAt.slice(0, 10),
-    };
-    servants.push(servant);
+    });
     approved.push({
       collectionNo: entry.collectionNo,
       servantId: entry.servantId,
@@ -322,11 +283,11 @@ export function applyCnReleaseGate(
     });
   }
 
-  servants.sort((left, right) => {
-    const leftEntry = manifest.entries.find((entry) => entry.servantId === left.id);
-    const rightEntry = manifest.entries.find((entry) => entry.servantId === right.id);
-    return (leftEntry?.collectionNo ?? 0) - (rightEntry?.collectionNo ?? 0);
-  });
+  servants.sort(
+    (left, right) =>
+      (collectionNoByServantId.get(left.id) ?? 0) -
+      (collectionNoByServantId.get(right.id) ?? 0),
+  );
 
   const blocked = candidates
     .filter((candidate) => !evidenceCollectionNumbers.has(candidate.collectionNo))

@@ -1,10 +1,17 @@
-import { assertDatasetSnapshot, type DatasetSnapshot } from "@fgo-wiki/domain";
+import {
+  assertDatasetSnapshot,
+  type DatasetMetadata,
+  type DatasetSnapshot,
+  type DatasetSourceVersions,
+} from "@fgo-wiki/domain";
 
 export interface SnapshotPointer {
   datasetVersion: string;
   snapshotUrl: string;
   minimumAppVersion: string;
   publishedAt: string;
+  sourceStatus: DatasetMetadata["sourceStatus"];
+  sourceVersions?: DatasetSourceVersions;
 }
 
 export interface SnapshotStore {

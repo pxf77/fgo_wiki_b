@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import type { AtlasServantCandidate } from "./normalize-atlas.js";
 import type { CnReleaseEvidenceManifest } from "./release-gate.js";
 import { applyCnReleaseGate } from "./release-gate.js";
-import type { AtlasServantCandidate } from "./normalize-atlas.js";
 
 const candidates: AtlasServantCandidate[] = [
   {
@@ -72,6 +72,8 @@ test("publishes only servants with reviewed CN official evidence", () => {
     ["archer-ptolemy"],
   );
   assert.equal(servants[0]?.release.status, "released");
+  assert.equal(servants[0]?.noblePhantasms[0]?.strengthened, false);
+  assert.deepEqual(servants[0]?.strengthenings, []);
   assert.equal(report.approved.length, 1);
   assert.deepEqual(
     report.blocked.map((entry) => entry.collectionNo),
@@ -79,11 +81,20 @@ test("publishes only servants with reviewed CN official evidence", () => {
   );
 });
 
-test("rejects non-approved evidence hosts", () => {
+test("uses the shared official-source host rules", () => {
   const invalid = structuredClone(manifest);
   invalid.entries[0]!.release.evidence.url = "https://example.com/not-official";
   assert.throws(
     () => applyCnReleaseGate(candidates, invalid),
     /not an approved CN official source/,
+  );
+});
+
+test("rejects a pre-marked strengthening state at the release boundary", () => {
+  const invalid = structuredClone(manifest);
+  invalid.entries[0]!.overrides.noblePhantasms[0]!.strengthened = true;
+  assert.throws(
+    () => applyCnReleaseGate(candidates, invalid),
+    /must be false before the CN strengthening gate/,
   );
 });

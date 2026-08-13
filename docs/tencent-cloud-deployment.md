@@ -53,7 +53,7 @@ Nginx 只代理 `api.example.cn`。Web 的 `out/` 目录由 CI 上传 COS。
 
 ## 5. 数据核验与快照发布顺序
 
-候选数据先经过国服官方实装证据门禁：
+候选数据依次经过国服实装与强化事件证据门禁：
 
 ```bash
 pnpm data:sync:atlas
@@ -61,11 +61,21 @@ pnpm data:prepare
 pnpm snapshot:build
 ```
 
+正式发布前审阅：
+
+```text
+data/reports/atlas-normalization.json
+data/reports/cn-release-gate.json
+data/reports/cn-strengthening-gate.json
+```
+
+快照中的 `metadata.sourceVersions`、版本目录内的 `release.json` 与根目录 `latest.json` 必须记录相同的实装证据和强化证据版本。
+
 正式发布顺序：
 
-1. 审阅 `data/reports/atlas-normalization.json` 和 `data/reports/cn-release-gate.json`。
-2. 上传 `data/generated/<version>/`，设置一年缓存。
-3. 确认 CDN 可读取新版本。
+1. 上传 `data/generated/<version>/`，设置一年缓存；该目录包含 `release.json`。
+2. 确认 CDN 可读取 `snapshot.json`、`metadata.json` 和 `release.json`。
+3. 核对 `release.json.sourceVersions` 与两份门禁报告一致。
 4. 最后覆盖 `snapshots/latest.json`，设置 60 秒缓存。
 
 发布脚本见 `infra/scripts/publish-snapshot.sh`。生产环境可将脚本中的上传命令替换为腾讯云 CLI、COSCMD 或 CI 官方 Action。GitHub 的定时核验工作流只生成 Artifact，不直接更新 COS。

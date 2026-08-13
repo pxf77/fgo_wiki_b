@@ -22,6 +22,8 @@ The canonical output is a versioned CN data snapshot consumed by Web, PWA and na
 
 A fact must have one owner. Do not duplicate validation or introduce hash/fingerprint chains. Use schema validation at input boundaries, database transactions for writes, and HTTP ETag/cache semantics for published snapshots.
 
+Official source parsing and host policy are owned by `apps/worker/src/official-evidence.ts`. Release and strengthening gates must reuse that boundary rather than copy it.
+
 ## Ranking policy
 
 AI may draft change explanations, but may not publish a tier. Every published ranking snapshot requires a human-reviewed source file and a change reason.
@@ -35,3 +37,9 @@ Use Atlas `collectionNo` as the primary cross-source identity. A name fallback m
 Release overrides must keep `NoblePhantasm.strengthened` at the base value `false`; the strengthening gate rejects pre-marked input. Only `data/cn-strengthening-evidence.json` may derive a released `true` state and timeline entries.
 
 A released strengthening event must target a release-gated servant and valid NP/skill identity. Announced events may be shown in the timeline but must not mutate current strengthened state.
+
+## Publication policy
+
+A reviewed snapshot must derive `metadata.sourceVersions` from the release-gate and strengthening-gate reports. Do not manually repeat evidence versions in ranking files, environment variables or another manifest.
+
+The version-scoped `release.json` and short-cache `latest.json` must carry the same source status and evidence versions as the snapshot metadata. Publish immutable version objects before replacing `latest.json`.

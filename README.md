@@ -57,6 +57,7 @@ pnpm dev:api
 1. 未取得国服实装证据的候选不会进入发布数据。
 2. 实装覆盖项只能提供宝具基础状态 `false`，不能预标记强化完成。
 3. 强化状态只能由独立国服强化事件证据派生。
+4. 最终快照会记录实装证据和强化证据的版本。
 
 生产候选链为：
 
@@ -118,9 +119,30 @@ Atlas CN export
 - `collectionNo` 是跨来源主身份；名称不是第二套身份系统。
 - 国服实装事实由 `data/cn-release-evidence.json` 单点拥有。
 - 技能/宝具强化事实由 `data/cn-strengthening-evidence.json` 单点拥有。
+- 实装与强化门禁共用一套国服发布来源校验器。
 - 实装覆盖项必须保持 `NoblePhantasm.strengthened=false`；只有强化门禁可派生 `true`。
 - 候选缺实装证据时进入 blocked report，不进入快照。
 - 榜单 Tier 仍需人工审核，AI 不得直接发布。
+
+## 快照可追溯性
+
+经过审核的数据快照会把两份事实清单版本写入：
+
+```text
+metadata.sourceVersions.releaseEvidence
+metadata.sourceVersions.strengtheningEvidence
+```
+
+相同版本信息同时出现在：
+
+```text
+data/generated/<dataset-version>/metadata.json
+data/generated/<dataset-version>/snapshot.json
+data/generated/<dataset-version>/release.json
+data/generated/latest.json
+```
+
+其中 `release.json` 是版本目录内的发布描述，`latest.json` 是短缓存更新指针；腾讯云发布时必须先上传版本目录，再覆盖 `latest.json`。
 
 ## 当前完成范围
 
@@ -133,11 +155,13 @@ Atlas CN export
 - Atlas 职介、稀有度、宝具色卡、目标范围和 Hit 数规范化
 - 基于 `collectionNo` 的国服官方实装证据门禁
 - 基于 `servantId + targetId` 的国服强化事件门禁
+- 统一的国服发布来源校验边界
 - 宝具强化状态派生与技能/宝具强化时间线
 - 门禁 approved/blocked 与 applied 报告
+- 快照元数据与发布描述中的证据版本追踪
 - Git 管理的榜单审核源文件
 - PostgreSQL/Drizzle schema
 - Docker Compose、TCR/CVM、COS/CDN 发布脚本
 - CI：依赖锁定、类型检查、测试、构建、Fixture 数据链与快照产物
 
-下一阶段应扩展全职介实装/强化证据清单、审核后台鉴权、完整技能模型和真实 COS 发布凭据。
+下一阶段应解决仅证据版本变化时的不可变数据集路径标识，再扩展全职介实装/强化证据清单、审核后台鉴权、完整技能模型和真实 COS 发布凭据。

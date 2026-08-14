@@ -14,6 +14,7 @@ import {
   type Servant,
 } from "@fgo-wiki/domain";
 import { asRecord, requireString } from "./json-validation.js";
+import { rankingSourceFiles } from "./ranking-source.js";
 
 const compress = promisify(brotliCompress);
 const repositoryRoot = fileURLToPath(new URL("../../../", import.meta.url));
@@ -164,9 +165,10 @@ export async function buildSnapshot(options: BuildSnapshotOptions = {}): Promise
   );
   const pointer = await readJson<LatestRankingPointer>(join(rankingRoot, "latest.json"));
   const rankingDirectory = join(rankingRoot, pointer.directory);
-  const rankingFiles = ["farming-90pp.json", "high-difficulty.json", "support.json"];
   const rankings = await Promise.all(
-    rankingFiles.map((file) => readJson<RankingSnapshot>(join(rankingDirectory, file))),
+    rankingSourceFiles.map((file) =>
+      readJson<RankingSnapshot>(join(rankingDirectory, file)),
+    ),
   );
   const { servants, sourceStatus } = await loadServants(options);
   const sourceVersions = await loadSourceVersions(sourceStatus, options);

@@ -17,6 +17,7 @@
     "test": "turbo run test",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "version:check": "tsx apps/worker/src/pr-version-contract.ts",
     "data:sync:atlas": "pnpm build:packages && pnpm --filter @fgo-wiki/worker sync:atlas",
     "data:prepare": "pnpm build:packages && pnpm --filter @fgo-wiki/worker data:prepare",
     "data:prepare:fixture": "pnpm build:packages && pnpm --filter @fgo-wiki/worker data:prepare:fixture",

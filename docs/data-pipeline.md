@@ -52,6 +52,12 @@ pnpm data:prepare
 pnpm snapshot:build
 ```
 
+Pull-request explicit version verification:
+
+```bash
+pnpm version:check -- --base <base-sha> --head <head-sha>
+```
+
 The live path writes reports to:
 
 ```text
@@ -148,6 +154,20 @@ Bootstrap output uses:
 This means a release-source-only or strengthening-source-only update produces a new immutable directory even when the ranking date and revision do not change. The previous directory remains addressable and `latest.json` moves to the new release descriptor.
 
 The source manifests must increment their explicit `version` whenever source content changes. This project intentionally does not derive path identity from file hashes, SHA256 values or hidden fingerprints.
+
+## Pull request version contract
+
+Pull-request CI compares parsed JSON between the base and head commits before preparing data:
+
+1. If the release source changes semantically after excluding top-level `version`, the release source version must change.
+2. If the strengthening source changes semantically after excluding top-level `version`, the strengthening source version must change.
+3. If a ranking source changes semantically after excluding `id`, `asOf` and `revision`, the ranking pointer must advance to a later date or a strictly higher revision on the same date.
+4. The three current ranking files must all match the pointer's `asOf` and `revision`.
+5. Ranking source deletion and semantic edits outside the current ranking directory are rejected.
+
+A formatting-only JSON change does not require a version bump. An explicit version-only change is allowed. The initial repository addition is allowed when the base commit has no corresponding source file.
+
+This gate reads Git objects and compares explicit fields directly. It does not create hashes, fingerprints, database counters or approval records.
 
 ## Current boundary
 

@@ -54,6 +54,18 @@ Source manifest versions must be path-safe tokens and must be incremented whenev
 
 The version-scoped `release.json` and short-cache `latest.json` must carry the same source status and source versions as the snapshot metadata. Publish immutable version objects before replacing `latest.json`, and never overwrite an existing version directory with different source versions.
 
+## Pull request version contract
+
+Pull-request CI compares the base and head revisions directly:
+
+- Semantic changes in `data/cn-release-evidence.json` require its top-level `version` to change.
+- Semantic changes in `data/cn-strengthening-evidence.json` require its top-level `version` to change.
+- Semantic ranking changes require `rankings/cn/latest.json` to advance by date or by a strictly higher revision on the same date.
+- Every current ranking file must match the `asOf` and `revision` declared by `rankings/cn/latest.json`.
+- Ranking changes outside the current ranking directory are rejected.
+
+The comparison uses parsed JSON with identity fields excluded. It must not be replaced with content hashes, checksums, database counters or a second release identity.
+
 ## Human review boundary
 
 GitHub Pull Requests are the only human approval boundary. CI gates validate deterministic contracts; `apps/admin` only projects read-only data status.

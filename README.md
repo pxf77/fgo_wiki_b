@@ -168,6 +168,26 @@ Bootstrap 数据使用：
 
 因此只修改实装来源或强化来源，也会产生新的 COS 对象前缀，不会覆盖同一榜单 revision 下的旧快照。来源清单内容发生变化时必须同步提升其显式 `version`；项目不使用内容 Hash、SHA256 或隐藏指纹作为第二套版本系统。
 
+## PR 显式版本门禁
+
+Pull Request CI 会直接比较 base 与 head 中的 JSON 内容：
+
+- `data/cn-release-evidence.json` 的语义内容变化时，顶层 `version` 必须变化。
+- `data/cn-strengthening-evidence.json` 的语义内容变化时，顶层 `version` 必须变化。
+- 榜单实际内容变化时，`rankings/cn/latest.json` 必须前进到新日期，或在同一天提高 `revision`。
+- 当前目录下的 `farming-90pp.json`、`high-difficulty.json`、`support.json` 必须与 `latest.json` 的 `asOf/revision` 一致。
+- 不允许通过修改非当前榜单目录静默改写历史榜单。
+
+比较基于解析后的 JSON，并排除 `version` 或 `id/asOf/revision` 等身份字段；纯格式化不会被误判为业务内容变化。该机制不生成 Hash、SHA256、指纹或数据库版本记录。
+
+本地可执行：
+
+```bash
+pnpm version:check -- --base <base-sha> --head <head-sha>
+```
+
+当前首次架构 PR 的 base 中尚不存在这些事实源，因此允许作为初始化基线；后续 PR 会执行完整升版约束。
+
 ## 当前完成范围
 
 - 国服数据合同与版本化快照模型
@@ -184,10 +204,11 @@ Bootstrap 数据使用：
 - 实装门禁 passed/blocked 与强化 applied 报告
 - 快照元数据与发布描述中的证据版本追踪
 - 榜单版本与事实源版本共同决定的不可变数据集路径
+- PR 显式来源版本与榜单 revision 门禁
 - 只读国服数据状态台与内部状态 API
 - Git 管理的榜单源文件
 - PostgreSQL/Drizzle schema
 - Docker Compose、TCR/CVM、COS/CDN 发布脚本
-- CI：依赖锁定、类型检查、测试、构建、Fixture 数据链与快照产物
+- CI：依赖锁定、显式版本检查、类型检查、测试、构建、Fixture 数据链与快照产物
 
 下一阶段应扩展全职介实装/强化来源覆盖，并继续完善技能效果结构化模型和真实腾讯云部署验证。

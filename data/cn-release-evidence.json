@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "version": "2026-08-14-r2",
+  "version": "2026-08-14-r3",
   "region": "CN",
   "reviewedAt": "2026-08-14T00:00:00.000Z",
   "entries": [
@@ -8,7 +8,11 @@
       "collectionNo": 311,
       "servantId": "archer-baobhan-sith",
       "displayName": "妖精骑士崔斯坦（芭万·希）",
-      "aliases": ["芭万·希", "妖崔", "妖精骑士崔斯坦"],
+      "aliases": [
+        "芭万·希",
+        "妖崔",
+        "妖精骑士崔斯坦"
+      ],
       "expected": {
         "className": "archer",
         "rarity": 4
@@ -28,18 +32,35 @@
           "self": 60,
           "team": 0
         },
-        "tags": ["单体宝具", "Quick", "诅咒", "必中", "高自充", "混沌", "恶"],
-        "role": ["main_dps", "sub_dps"],
+        "tags": [
+          "单体宝具",
+          "Quick",
+          "诅咒",
+          "必中",
+          "高自充",
+          "混沌",
+          "恶"
+        ],
+        "role": [
+          "main_dps",
+          "sub_dps"
+        ],
         "noblePhantasms": [
           {
             "id": "baobhan-sith-quick-single",
-            "atlasSourceId": 1031101,
+            "atlasSourceId": 204302,
             "name": "痛幻的哭奏",
             "color": "quick",
             "scope": "single",
             "hitCount": 6,
-            "targetTraits": ["诅咒状态"],
-            "effects": ["必中", "诅咒", "按诅咒层数获得特攻"],
+            "targetTraits": [
+              "诅咒状态"
+            ],
+            "effects": [
+              "必中",
+              "诅咒",
+              "按诅咒层数获得特攻"
+            ],
             "strengthened": false
           }
         ]
@@ -49,7 +70,9 @@
       "collectionNo": 394,
       "servantId": "archer-ptolemy",
       "displayName": "托勒密",
-      "aliases": ["老托"],
+      "aliases": [
+        "老托"
+      ],
       "expected": {
         "className": "archer",
         "rarity": 5
@@ -69,27 +92,42 @@
           "self": 50,
           "team": 0
         },
-        "tags": ["单体宝具", "全体宝具", "Buster", "Arts", "形态切换", "变则"],
-        "role": ["main_dps", "sub_dps"],
+        "tags": [
+          "单体宝具",
+          "全体宝具",
+          "Buster",
+          "Arts",
+          "形态切换",
+          "变则"
+        ],
+        "role": [
+          "main_dps",
+          "sub_dps"
+        ],
         "noblePhantasms": [
           {
             "id": "ptolemy-buster-single",
-            "atlasSourceId": 1039401,
+            "atlasSourceId": 205001,
             "name": "月は知らず、久遠の光",
             "color": "buster",
             "scope": "single",
-            "hitCount": 3,
-            "effects": ["无视防御"],
+            "hitCount": 5,
+            "effects": [
+              "无视防御"
+            ],
             "strengthened": false
           },
           {
             "id": "ptolemy-arts-aoe",
-            "atlasSourceId": 1039402,
+            "atlasSourceId": 205002,
             "name": "王之书库",
             "color": "arts",
             "scope": "aoe",
             "hitCount": 5,
-            "effects": ["形态切换", "全体攻击"],
+            "effects": [
+              "形态切换",
+              "全体攻击"
+            ],
             "strengthened": false
           }
         ]
@@ -99,7 +137,9 @@
       "collectionNo": 427,
       "servantId": "archer-tutankhamun",
       "displayName": "图坦卡蒙",
-      "aliases": ["图坦"],
+      "aliases": [
+        "图坦"
+      ],
       "expected": {
         "className": "archer",
         "rarity": 5
@@ -119,18 +159,34 @@
           "self": 60,
           "team": 20
         },
-        "tags": ["单体宝具", "Arts", "魔性特攻", "群充", "主动退场", "多核"],
-        "role": ["main_dps", "sub_dps", "plug_in"],
+        "tags": [
+          "单体宝具",
+          "Arts",
+          "魔性特攻",
+          "群充",
+          "主动退场",
+          "多核"
+        ],
+        "role": [
+          "main_dps",
+          "sub_dps",
+          "plug_in"
+        ],
         "noblePhantasms": [
           {
             "id": "tutankhamun-arts-single",
-            "atlasSourceId": 1042701,
+            "atlasSourceId": 205302,
             "name": "暝暗之匣",
             "color": "arts",
             "scope": "single",
-            "hitCount": 4,
-            "targetTraits": ["魔性"],
-            "effects": ["魔性特攻", "宝具后自身退场"],
+            "hitCount": 5,
+            "targetTraits": [
+              "魔性"
+            ],
+            "effects": [
+              "魔性特攻",
+              "宝具后自身退场"
+            ],
             "strengthened": false
           }
         ]

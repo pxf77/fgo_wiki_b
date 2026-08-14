@@ -2,8 +2,7 @@
 
 ## Product boundary
 
-This repository is a CN-region FGO ranking and decision product, not a full encyclopedia clone.
-The canonical output is a versioned CN data snapshot consumed by Web, PWA and native shells.
+This repository is a CN-region FGO ranking and decision product, not a full encyclopedia clone. The canonical output is a versioned CN data snapshot consumed by Web, PWA and native shells.
 
 ## Ownership
 
@@ -14,7 +13,7 @@ The canonical output is a versioned CN data snapshot consumed by Web, PWA and na
 - `rankings/cn` owns Git-reviewed ranking entries.
 - `data/cn-release-evidence.json` owns CN servant release decisions and their official evidence.
 - `data/cn-strengthening-evidence.json` owns CN skill/NP strengthening events and their official evidence.
-- `data/fixtures` is test input only and must never be published as production data.
+- `data/fixtures` is test input only and must mirror relevant live Atlas contracts.
 - `apps/worker` owns Atlas ingestion, normalization, evidence gates, class coverage catalog generation and snapshot compilation.
 - `apps/api` owns dynamic HTTP interfaces.
 
@@ -23,6 +22,29 @@ The canonical output is a versioned CN data snapshot consumed by Web, PWA and na
 A fact must have one owner. Do not duplicate validation or introduce hash/fingerprint chains. Use schema validation at input boundaries, database transactions for writes, and HTTP ETag/cache semantics for published snapshots.
 
 Official source parsing and host policy are owned by `apps/worker/src/official-evidence.ts`. Release and strengthening gates must reuse that boundary rather than copy it.
+
+## Atlas normalization contract
+
+Live Atlas CN NP card values are numeric strings:
+
+```text
+1 = Arts
+2 = Buster
+3 = Quick
+```
+
+A servant may expose base, strengthened, hidden-name and temporary battle NP records. Normalization must:
+
+1. Prefer ordinary records with `0 < priority < 190`.
+2. Group variants by `num`, `npNum` and normalized card color.
+3. Select the highest-priority record in each group, using the larger Atlas NP ID only as a tie-breaker.
+4. Fall back to other positive-priority or all records only when no ordinary record exists.
+
+This rule must preserve genuine multi-NP servants whose card identities differ, while excluding temporary high-priority placeholders such as `priority=199` records.
+
+Atlas `strengthStatus` is an upstream hint for catalog gap detection only. It must not directly publish CN strengthening state.
+
+Never copy NP IDs from a fixture into production evidence without a successful live Atlas gate run. When the live contract changes, update the parser, fixture and focused regression tests together.
 
 ## Ranking policy
 

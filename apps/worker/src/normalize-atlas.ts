@@ -45,6 +45,12 @@ export interface AtlasNormalizationReport {
   warnings: AtlasNormalizationIssue[];
 }
 
+interface NormalizedNoblePhantasmVariant {
+  candidate: AtlasNoblePhantasmCandidate;
+  conceptKey: string;
+  priority: number;
+}
+
 const classNames: Record<string, ServantClass> = {
   saber: "saber",
   archer: "archer",
@@ -80,9 +86,9 @@ function normalizeRarity(value: number): Servant["rarity"] | undefined {
 
 function normalizeCardColor(value: string): CardColor | undefined {
   const token = normalizedToken(value);
-  if (token === "quick" || token === "arts" || token === "buster") {
-    return token;
-  }
+  if (token === "1" || token === "arts" || token === "cardarts") return "arts";
+  if (token === "2" || token === "buster" || token === "cardbuster") return "buster";
+  if (token === "3" || token === "quick" || token === "cardquick") return "quick";
   return undefined;
 }
 
@@ -115,11 +121,15 @@ function inferNoblePhantasmScope(functions: readonly AtlasNiceFunction[]): Noble
   return "special";
 }
 
+function atlasStatusIsStrengthened(strengthStatus: number): boolean {
+  return strengthStatus !== 0 && strengthStatus !== 1;
+}
+
 function normalizeNoblePhantasm(
   servant: { id: number; collectionNo: number; name: string },
   noblePhantasm: AtlasNiceNoblePhantasm,
   warnings: AtlasNormalizationIssue[],
-): AtlasNoblePhantasmCandidate | undefined {
+): NormalizedNoblePhantasmVariant | undefined {
   const color = normalizeCardColor(noblePhantasm.card);
   if (color === undefined) {
     warnings.push({
@@ -131,17 +141,71 @@ function normalizeNoblePhantasm(
     return undefined;
   }
 
+  const scope = inferNoblePhantasmScope(noblePhantasm.functions);
   const candidate: AtlasNoblePhantasmCandidate = {
     sourceId: noblePhantasm.id,
     name: noblePhantasm.name,
     color,
-    scope: inferNoblePhantasmScope(noblePhantasm.functions),
-    strengthened: noblePhantasm.strengthStatus > 0,
+    scope,
+    strengthened: atlasStatusIsStrengthened(noblePhantasm.strengthStatus),
   };
   if (noblePhantasm.npDistribution.length > 0) {
     candidate.hitCount = noblePhantasm.npDistribution.length;
   }
-  return candidate;
+
+  return {
+    candidate,
+    conceptKey: `${noblePhantasm.num}:${noblePhantasm.npNum}:${color}`,
+    priority: noblePhantasm.priority,
+  };
+}
+
+function currentNoblePhantasms(
+  servant: {
+    id: number;
+    collectionNo: number;
+    name: string;
+    noblePhantasms: AtlasNiceNoblePhantasm[];
+  },
+  warnings: AtlasNormalizationIssue[],
+): AtlasNoblePhantasmCandidate[] {
+  const ordinaryVariants = servant.noblePhantasms.filter(
+    (noblePhantasm) =>
+      noblePhantasm.priority > 0 && noblePhantasm.priority < 190,
+  );
+  const positivePriorityVariants = servant.noblePhantasms.filter(
+    (noblePhantasm) => noblePhantasm.priority > 0,
+  );
+  const variants =
+    ordinaryVariants.length > 0
+      ? ordinaryVariants
+      : positivePriorityVariants.length > 0
+        ? positivePriorityVariants
+        : servant.noblePhantasms;
+  const currentByConcept = new Map<string, NormalizedNoblePhantasmVariant>();
+
+  for (const noblePhantasm of variants) {
+    const normalized = normalizeNoblePhantasm(servant, noblePhantasm, warnings);
+    if (!normalized) continue;
+
+    const existing = currentByConcept.get(normalized.conceptKey);
+    if (
+      !existing ||
+      normalized.priority > existing.priority ||
+      (normalized.priority === existing.priority &&
+        normalized.candidate.sourceId > existing.candidate.sourceId)
+    ) {
+      currentByConcept.set(normalized.conceptKey, normalized);
+    }
+  }
+
+  return [...currentByConcept.values()]
+    .sort(
+      (left, right) =>
+        left.priority - right.priority ||
+        left.candidate.sourceId - right.candidate.sourceId,
+    )
+    .map((entry) => entry.candidate);
 }
 
 export function normalizeAtlasPayload(value: unknown): {
@@ -182,10 +246,7 @@ export function normalizeAtlasPayload(value: unknown): {
       name: servant.name,
       className,
       rarity,
-      noblePhantasms: servant.noblePhantasms.flatMap((noblePhantasm) => {
-        const normalized = normalizeNoblePhantasm(servant, noblePhantasm, warnings);
-        return normalized === undefined ? [] : [normalized];
-      }),
+      noblePhantasms: currentNoblePhantasms(servant, warnings),
     };
     if (servant.originalName !== undefined) {
       candidate.originalName = servant.originalName;

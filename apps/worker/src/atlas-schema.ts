@@ -5,6 +5,9 @@ export interface AtlasNiceFunction {
 
 export interface AtlasNiceNoblePhantasm {
   id: number;
+  num: number;
+  npNum: number;
+  priority: number;
   name: string;
   card: string;
   strengthStatus: number;
@@ -74,6 +77,9 @@ function parseNoblePhantasm(value: unknown, context: string): AtlasNiceNoblePhan
   const record = asRecord(value, context);
   return {
     id: requiredNumber(record, "id", context),
+    num: optionalNumber(record, "num", 0),
+    npNum: optionalNumber(record, "npNum", 0),
+    priority: optionalNumber(record, "priority", 0),
     name: requiredString(record, "name", context),
     card: requiredString(record, "card", context),
     strengthStatus: optionalNumber(record, "strengthStatus", 0),

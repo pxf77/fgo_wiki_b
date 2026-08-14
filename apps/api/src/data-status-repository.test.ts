@@ -20,7 +20,7 @@ test("projects prepared worker reports into a ready data-status dashboard", asyn
   const snapshot = structuredClone(bootstrapSnapshot);
   snapshot.metadata.sourceStatus = "reviewed";
   snapshot.metadata.sourceVersions = {
-    releaseEvidence: "2026-08-14-r2",
+    releaseEvidence: "2026-08-14-r3",
     strengtheningEvidence: "2026-08-13-strengthening-r1",
   };
 

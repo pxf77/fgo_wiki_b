@@ -10,58 +10,56 @@ import { filterServants, type ServantFilter } from "@fgo-wiki/filter-engine";
 import { findRanking } from "@fgo-wiki/ranking-engine";
 import { ServantCard } from "@fgo-wiki/shared-ui";
 import { BrowserSnapshotStore } from "@fgo-wiki/snapshot-client";
+import { loadBundledSnapshot } from "./bundled-snapshot";
 import { selectPreferredSnapshot } from "./startup-snapshot";
 
 const store = new BrowserSnapshotStore("fgo-wiki:mobile-dataset");
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL as string | undefined;
-const bundledSnapshot = __FGO_WIKI_EMBEDDED_SNAPSHOT__;
 
 export function App() {
-  const [snapshot, setSnapshot] = useState<DatasetSnapshot>(() => bundledSnapshot);
+  const [snapshot, setSnapshot] = useState<DatasetSnapshot>();
   const [color, setColor] = useState<CardColor | "all">("all");
   const [scope, setScope] = useState<NoblePhantasmScope | "all">("all");
   const [favorites, setFavorites] = useState<string[]>(() => {
     const value = localStorage.getItem("fgo-wiki:favorites");
     return value ? (JSON.parse(value) as string[]) : [];
   });
-  const [message, setMessage] = useState("内置国服事实数据已就绪");
+  const [message, setMessage] = useState("正在载入内置国服事实数据…");
 
   useEffect(() => {
     let active = true;
-    void store
-      .get()
-      .then((cached) => {
-        if (!active || !cached) return;
-        const preferred = selectPreferredSnapshot(bundledSnapshot, cached);
+    void (async () => {
+      try {
+        const bundled = await loadBundledSnapshot();
+        const cached = await store.get().catch(() => undefined);
+        if (!active) return;
+        const preferred = selectPreferredSnapshot(bundled, cached);
         setSnapshot(preferred);
-        if (
-          preferred === cached &&
-          cached.metadata.datasetVersion !== bundledSnapshot.metadata.datasetVersion
-        ) {
-          setMessage(`已载入本地缓存 ${cached.metadata.datasetVersion}`);
-        } else if (
-          preferred === bundledSnapshot &&
-          cached.metadata.datasetVersion !== bundledSnapshot.metadata.datasetVersion
-        ) {
-          setMessage("已忽略旧版或非 reviewed 本地缓存");
+        setMessage(
+          cached && preferred === cached && cached.metadata.datasetVersion !== bundled.metadata.datasetVersion
+            ? `已载入本地缓存 ${cached.metadata.datasetVersion}`
+            : `内置国服事实数据已就绪 · ${preferred.metadata.datasetVersion}`,
+        );
+      } catch (error) {
+        if (active) {
+          setMessage(error instanceof Error ? error.message : "内置数据读取失败");
         }
-      })
-      .catch(() => {
-        if (active) setMessage("本地缓存不可用，继续使用内置国服事实数据");
-      });
+      }
+    })();
     return () => {
       active = false;
     };
   }, []);
 
   const servants = useMemo(() => {
+    if (!snapshot) return [];
     const filter: ServantFilter = { classes: ["archer"], releasedOnly: true };
     if (color !== "all") filter.npColors = [color];
     if (scope !== "all") filter.npScopes = [scope];
     return filterServants(snapshot.servants, filter);
   }, [color, scope, snapshot]);
 
-  const ranking = findRanking(snapshot.rankings, "farming_90pp");
+  const ranking = snapshot ? findRanking(snapshot.rankings, "farming_90pp") : undefined;
   const rankingByServant = new Map(ranking?.entries.map((entry) => [entry.servantId, entry]));
 
   function toggleFavorite(id: string) {
@@ -73,6 +71,7 @@ export function App() {
   }
 
   async function refreshDataset() {
+    if (!snapshot) return;
     if (!apiBaseUrl) {
       setMessage("未配置 VITE_API_BASE_URL，继续使用离线快照");
       return;
@@ -81,7 +80,7 @@ export function App() {
     setMessage("正在检查国服数据更新…");
     try {
       const client = new FgoWikiApiClient({ baseUrl: apiBaseUrl });
-      const latest = await client.getLatestDataset();
+      const latest = await client.getClassDataset("archer");
       assertDatasetSnapshot(latest);
       if (latest.metadata.sourceStatus !== "reviewed") {
         throw new Error("更新端当前未发布 reviewed 国服事实快照");
@@ -111,11 +110,13 @@ export function App() {
           <p>FGO 简中服 · 离线决策工具</p>
           <h1>灵基决策站</h1>
         </div>
-        <button onClick={() => void refreshDataset()}>检查更新</button>
+        <button disabled={!snapshot} onClick={() => void refreshDataset()}>
+          检查更新
+        </button>
       </header>
 
       <section className="status-card">
-        <strong>{snapshot.metadata.datasetVersion}</strong>
+        <strong>{snapshot?.metadata.datasetVersion ?? "载入中"}</strong>
         <span>{message}</span>
       </section>
 
@@ -135,10 +136,12 @@ export function App() {
             <option value="all">全部</option>
             <option value="single">单体</option>
             <option value="aoe">全体</option>
+            <option value="support">辅助</option>
           </select>
         </label>
       </section>
 
+      {!snapshot ? <p className="mobile-loading">正在载入离线数据…</p> : null}
       <section className="mobile-list">
         {servants.map((servant) => (
           <div key={servant.id} className="mobile-card-shell">

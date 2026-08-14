@@ -6,7 +6,7 @@ import {
   type DatasetSnapshot,
 } from "@fgo-wiki/domain";
 
-const defaultSnapshotPath = "data/generated/latest/snapshot.json";
+const defaultSnapshotPath = "data/generated/latest/classes/archer.json";
 
 export interface MobileBuildSnapshotOptions {
   snapshotPath?: string;
@@ -33,7 +33,10 @@ export async function loadMobileBuildSnapshot(
     options.allowBootstrapData ??
     parseBooleanFlag(process.env.ALLOW_BOOTSTRAP_DATA, "ALLOW_BOOTSTRAP_DATA");
   const snapshotPath = resolveSnapshotPath(
-    options.snapshotPath ?? process.env.SNAPSHOT_PATH ?? defaultSnapshotPath,
+    options.snapshotPath ??
+      process.env.MOBILE_CLASS_SNAPSHOT_PATH ??
+      process.env.SNAPSHOT_PATH ??
+      defaultSnapshotPath,
     repositoryRoot,
   );
 

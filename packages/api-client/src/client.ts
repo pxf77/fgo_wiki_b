@@ -61,6 +61,12 @@ export class FgoWikiApiClient {
     return this.request<Servant>(`/api/v1/servants/${encodeURIComponent(id)}`);
   }
 
+  public getClassDataset(className: ServantClass): Promise<DatasetSnapshot> {
+    return this.request<DatasetSnapshot>(
+      `/api/v1/classes/${encodeURIComponent(className)}`,
+    );
+  }
+
   public getRanking(mode: RankingMode): Promise<RankingSnapshot> {
     return this.request<RankingSnapshot>(`/api/v1/rankings/${mode}`);
   }

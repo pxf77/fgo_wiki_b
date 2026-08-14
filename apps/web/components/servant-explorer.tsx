@@ -8,7 +8,7 @@ import type {
   RankingMode,
 } from "@fgo-wiki/domain";
 import { filterServants, type ServantFilter } from "@fgo-wiki/filter-engine";
-import { findRanking } from "@fgo-wiki/ranking-engine";
+import { findRanking, sortRankingEntries } from "@fgo-wiki/ranking-engine";
 import { ServantCard } from "@fgo-wiki/shared-ui";
 
 export interface ServantExplorerProps {
@@ -25,6 +25,25 @@ export function ServantExplorer({ snapshot }: ServantExplorerProps) {
   const [minimumCharge, setMinimumCharge] = useState(0);
   const [mode, setMode] = useState<RankingMode>("farming_90pp");
 
+  const ranking = useMemo(
+    () => findRanking(snapshot.rankings, mode),
+    [mode, snapshot.rankings],
+  );
+  const rankingByServant = useMemo(
+    () => new Map(ranking?.entries.map((entry) => [entry.servantId, entry])),
+    [ranking],
+  );
+  const rankingOrder = useMemo(
+    () =>
+      new Map(
+        sortRankingEntries(ranking?.entries ?? []).map((entry, index) => [
+          entry.servantId,
+          index,
+        ]),
+      ),
+    [ranking],
+  );
+
   const filtered = useMemo(() => {
     const filter: ServantFilter = {
       classes: ["archer"],
@@ -37,23 +56,19 @@ export function ServantExplorer({ snapshot }: ServantExplorerProps) {
     if (strengthening !== "all") {
       filter.npStrengthened = strengthening === "strengthened";
     }
-    return filterServants(snapshot.servants, filter);
-  }, [color, minimumCharge, query, scope, snapshot.servants, strengthening]);
-
-  const ranking = useMemo(
-    () => findRanking(snapshot.rankings, mode),
-    [mode, snapshot.rankings],
-  );
-  const rankingByServant = useMemo(
-    () => new Map(ranking?.entries.map((entry) => [entry.servantId, entry])),
-    [ranking],
-  );
+    return filterServants(snapshot.servants, filter).sort(
+      (left, right) =>
+        (rankingOrder.get(left.id) ?? Number.MAX_SAFE_INTEGER) -
+          (rankingOrder.get(right.id) ?? Number.MAX_SAFE_INTEGER) ||
+        left.name.localeCompare(right.name, "zh-CN"),
+    );
+  }, [color, minimumCharge, query, rankingOrder, scope, snapshot.servants, strengthening]);
 
   return (
     <section className="explorer" aria-labelledby="explorer-title">
       <header className="section-heading">
         <div>
-          <p className="eyebrow">可复现筛选条件</p>
+          <p className="eyebrow">国服当前数据 · 可复现筛选</p>
           <h2 id="explorer-title">弓阶强度图鉴</h2>
         </div>
         <span>{filtered.length} 名从者</span>
@@ -65,7 +80,7 @@ export function ServantExplorer({ snapshot }: ServantExplorerProps) {
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="芭万·希 / 魔性 / 变则"
+            placeholder="罗宾汉 / 单体 / 50自充"
           />
         </label>
         <label>
@@ -103,9 +118,10 @@ export function ServantExplorer({ snapshot }: ServantExplorerProps) {
           最低自充
           <select value={minimumCharge} onChange={(event) => setMinimumCharge(Number(event.target.value))}>
             <option value={0}>不限</option>
+            <option value={20}>20%</option>
             <option value={30}>30%</option>
             <option value={50}>50%</option>
-            <option value={60}>60%</option>
+            <option value={80}>80%</option>
           </select>
         </label>
         <label>
@@ -113,18 +129,32 @@ export function ServantExplorer({ snapshot }: ServantExplorerProps) {
           <select value={mode} onChange={(event) => setMode(event.target.value as RankingMode)}>
             <option value="farming_90pp">90++ / 变则</option>
             <option value="high_difficulty">高难</option>
+            <option value="np1_value">NP1 数据榜</option>
+            <option value="np5_value">NP5 数据榜</option>
           </select>
         </label>
       </form>
 
+      <p className="ranking-note">
+        {ranking?.origin === "computed"
+          ? "当前模式为确定性数据榜。"
+          : ranking?.origin === "mixed"
+            ? "人工评级覆盖已核验条目，其余从者使用透明规则评分补齐。"
+            : "当前模式使用人工维护榜单。"}
+      </p>
+
       <div className="servant-grid">
         {filtered.map((servant) => (
-          <ServantCard
-            key={servant.id}
-            servant={servant}
-            ranking={rankingByServant.get(servant.id)}
-            className="servant-card"
-          />
+          <div key={servant.id} className="servant-shell">
+            <ServantCard
+              servant={servant}
+              ranking={rankingByServant.get(servant.id)}
+              className="servant-card"
+            />
+            <a className="detail-link" href={`/servants/${servant.id}/`}>
+              查看数据、来源与各模式评价
+            </a>
+          </div>
         ))}
       </div>
 

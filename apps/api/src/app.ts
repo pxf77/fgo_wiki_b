@@ -10,16 +10,16 @@ import { filterServants, type ServantFilter } from "@fgo-wiki/filter-engine";
 import { findRanking, sortRankingEntries } from "@fgo-wiki/ranking-engine";
 import Fastify, { type FastifyInstance } from "fastify";
 import type { ApiConfig } from "./config.js";
-import type { DataRepository } from "./repository.js";
 import {
-  ReviewDataUnavailableError,
-  type ReviewRepository,
-} from "./review-repository.js";
+  DataStatusUnavailableError,
+  type DataStatusRepository,
+} from "./data-status-repository.js";
+import type { DataRepository } from "./repository.js";
 
 export interface BuildAppOptions {
   config: ApiConfig;
   repository: DataRepository;
-  reviewRepository?: ReviewRepository;
+  dataStatusRepository?: DataStatusRepository;
 }
 
 interface ServantQuerystring {
@@ -125,18 +125,18 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
     return snapshot;
   });
 
-  app.get("/api/internal/review/dashboard", async (_request, reply) => {
+  app.get("/api/internal/data-status", async (_request, reply) => {
     reply.header("cache-control", "no-store");
-    if (!options.reviewRepository) {
+    if (!options.dataStatusRepository) {
       return reply.code(503).send({
-        message: "Review repository is not configured",
+        message: "Data status repository is not configured",
       });
     }
 
     try {
-      return await options.reviewRepository.getDashboard();
+      return await options.dataStatusRepository.getDashboard();
     } catch (error) {
-      if (error instanceof ReviewDataUnavailableError) {
+      if (error instanceof DataStatusUnavailableError) {
         return reply.code(503).send({ message: error.message });
       }
       throw error;

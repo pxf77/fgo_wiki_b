@@ -22,6 +22,6 @@ export function assertOfficialSource(
 
   const url = new URL(urlValue);
   if (url.protocol !== "https:" || !allowedSourceHosts.has(url.hostname.toLowerCase())) {
-    throw new TypeError(`${context}.url is not an approved CN official source`);
+    throw new TypeError(`${context}.url is not an allowed CN official source`);
   }
 }

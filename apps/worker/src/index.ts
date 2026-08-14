@@ -66,7 +66,7 @@ async function prepareData(rawPath: string): Promise<void> {
     paths.strengtheningGateReport,
   );
   console.log(
-    `Prepared ${releaseGate.approved.length} reviewed CN servants and ${strengtheningGate.applied.length} strengthening events from ${normalization.acceptedCount} Atlas candidates; ${releaseGate.blocked.length} candidates remain blocked`,
+    `Prepared ${releaseGate.passed.length} CN servants and ${strengtheningGate.applied.length} strengthening events from ${normalization.acceptedCount} Atlas candidates; ${releaseGate.blocked.length} candidates remain blocked`,
   );
 }
 
@@ -104,7 +104,7 @@ if (command === "snapshot") {
     paths.strengtheningGateReport,
   );
   console.log(
-    `CN gates approved ${releaseReport.approved.length} servants and applied ${strengtheningReport.applied.length} strengthening events`,
+    `CN gates passed ${releaseReport.passed.length} servants and applied ${strengtheningReport.applied.length} strengthening events`,
   );
 } else {
   throw new Error(`Unknown worker command: ${command}`);

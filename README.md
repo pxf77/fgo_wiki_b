@@ -4,9 +4,9 @@
 
 - **Web/PWA**：Next.js 静态导出，适合 COS + CDN、搜索引擎和分享链接。
 - **Android/iOS**：React + Vite + Capacitor，内置离线数据并支持后续原生能力。
-- **API**：Fastify，提供动态查询、用户数据和管理接口。
-- **Worker**：摄取 Atlas CN 数据、执行国服实装/强化证据门禁、编译人工审核榜单并发布不可变快照。
-- **PostgreSQL**：保存标准化从者版本、榜单快照、审批记录和用户数据。
+- **API**：Fastify，提供动态查询、用户数据和只读数据状态接口。
+- **Worker**：摄取 Atlas CN 数据、执行国服实装/强化证据门禁、编译 Git 管理榜单并发布不可变快照。
+- **PostgreSQL**：保存标准化从者版本、榜单快照和用户数据。
 
 当前提交包含一个可运行的 **弓阶垂直切片**，用于验证职介、宝具类型、宝具色卡、自充、强化状态、模式榜单以及 `Atlas -> 国服证据门禁 -> 快照` 数据链。
 
@@ -18,7 +18,7 @@ apps/
   mobile/     Capacitor 移动端壳
   api/        Fastify API
   worker/     数据同步、规范化、证据门禁与快照编译
-  admin/      榜单审核后台原型
+  admin/      只读数据状态台
 packages/
   domain/         领域模型与启动数据
   filter-engine/  多维筛选
@@ -28,7 +28,7 @@ packages/
   snapshot-client/浏览器/移动端快照缓存
   shared-ui/      Web 与移动端共享组件
   database/       Drizzle/PostgreSQL schema
-rankings/cn/      人工审核的国服榜单源文件
+rankings/cn/      Git 管理的国服榜单源文件
 data/
   cn-release-evidence.json        国服实装事实 Owner
   cn-strengthening-evidence.json  国服强化事件事实 Owner
@@ -68,6 +68,7 @@ pnpm snapshot:build
 ```
 
 详细事实归属和门禁规则见 [`docs/data-pipeline.md`](docs/data-pipeline.md)。
+只读状态台说明见 [`docs/data-status-dashboard.md`](docs/data-status-dashboard.md)。
 
 启动 PostgreSQL 与 API：
 
@@ -109,7 +110,7 @@ Atlas CN export
   -> release-gated base servant data
   -> version-controlled CN strengthening evidence
   -> derived strengthening state and timeline
-  -> human-reviewed ranking source
+  -> Git-managed ranking source
   -> immutable JSON/Brotli snapshot
 ```
 
@@ -122,11 +123,11 @@ Atlas CN export
 - 实装与强化门禁共用一套国服发布来源校验器。
 - 实装覆盖项必须保持 `NoblePhantasm.strengthened=false`；只有强化门禁可派生 `true`。
 - 候选缺实装证据时进入 blocked report，不进入快照。
-- 榜单 Tier 仍需人工审核，AI 不得直接发布。
+- 榜单 Tier 通过 GitHub Pull Request 人工审核，AI 不得直接发布。
 
 ## 快照可追溯性
 
-经过审核的数据快照会把两份事实清单版本写入：
+通过事实门禁的数据快照会把两份事实清单版本写入：
 
 ```text
 metadata.sourceVersions.releaseEvidence
@@ -157,11 +158,12 @@ data/generated/latest.json
 - 基于 `servantId + targetId` 的国服强化事件门禁
 - 统一的国服发布来源校验边界
 - 宝具强化状态派生与技能/宝具强化时间线
-- 门禁 approved/blocked 与 applied 报告
+- 实装门禁 passed/blocked 与强化 applied 报告
 - 快照元数据与发布描述中的证据版本追踪
-- Git 管理的榜单审核源文件
+- 只读国服数据状态台与内部状态 API
+- Git 管理的榜单源文件
 - PostgreSQL/Drizzle schema
 - Docker Compose、TCR/CVM、COS/CDN 发布脚本
 - CI：依赖锁定、类型检查、测试、构建、Fixture 数据链与快照产物
 
-下一阶段应解决仅证据版本变化时的不可变数据集路径标识，再扩展全职介实装/强化证据清单、审核后台鉴权、完整技能模型和真实 COS 发布凭据。
+下一阶段应解决仅证据版本变化时的不可变数据集路径标识，再扩展全职介实装/强化来源、完整技能模型和真实腾讯云部署。

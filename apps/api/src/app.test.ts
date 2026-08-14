@@ -3,12 +3,12 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   bootstrapSnapshot,
-  type ReviewDashboard,
+  type DataStatusDashboard,
 } from "@fgo-wiki/domain";
 import { buildApp } from "./app.js";
 import type { ApiConfig } from "./config.js";
+import type { DataStatusRepository } from "./data-status-repository.js";
 import type { DataRepository } from "./repository.js";
-import type { ReviewRepository } from "./review-repository.js";
 
 const config: ApiConfig = {
   host: "127.0.0.1",
@@ -37,13 +37,13 @@ test("filters servants through the HTTP boundary", async () => {
   await app.close();
 });
 
-test("serves the read-only review dashboard without caching", async () => {
-  const dashboard: ReviewDashboard = {
+test("serves the read-only data-status endpoint without caching", async () => {
+  const dashboard: DataStatusDashboard = {
     generatedAt: "2026-08-14T00:00:00.000Z",
     counts: {
       atlasCandidates: 4,
-      approvedReleases: 3,
-      blockedCandidates: 1,
+      passedReleases: 3,
+      missingSourceCandidates: 1,
       strengtheningEvents: 1,
       rankingEntries: 4,
     },
@@ -57,7 +57,7 @@ test("serves the read-only review dashboard without caching", async () => {
       status: "ready",
       datasetVersion: "2026-08-13-r1",
       sourceStatus: "reviewed",
-      reviewedSourceVersions: {
+      sourceManifestVersions: {
         releaseEvidence: "release-r1",
         strengtheningEvidence: "strengthening-r1",
       },
@@ -69,25 +69,31 @@ test("serves the read-only review dashboard without caching", async () => {
         releaseEvidence: "release-r1",
         strengtheningEvidence: "strengthening-r1",
       },
-      pendingSourceVersions: [],
+      staleSourceVersions: [],
       blockers: [],
     },
-    blockedCandidates: [],
+    missingSourceCandidates: [],
     releaseSources: [],
     strengtheningSources: [],
     rankings: [],
   };
-  const reviewRepository: ReviewRepository = {
+  const dataStatusRepository: DataStatusRepository = {
     getDashboard: async () => dashboard,
   };
-  const app = await buildApp({ config, repository, reviewRepository });
+  const app = await buildApp({ config, repository, dataStatusRepository });
   const response = await app.inject({
     method: "GET",
-    url: "/api/internal/review/dashboard",
+    url: "/api/internal/data-status",
   });
 
   assert.equal(response.statusCode, 200);
   assert.equal(response.headers["cache-control"], "no-store");
   assert.deepEqual(response.json(), dashboard);
+
+  const retiredRoute = await app.inject({
+    method: "GET",
+    url: "/api/internal/review/dashboard",
+  });
+  assert.equal(retiredRoute.statusCode, 404);
   await app.close();
 });

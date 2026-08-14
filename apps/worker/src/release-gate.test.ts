@@ -65,7 +65,7 @@ const manifest: CnReleaseEvidenceManifest = {
   ],
 };
 
-test("publishes only servants with reviewed CN official evidence", () => {
+test("publishes only servants with CN release source entries", () => {
   const { servants, report } = applyCnReleaseGate(candidates, manifest);
   assert.deepEqual(
     servants.map((servant) => servant.id),
@@ -74,7 +74,7 @@ test("publishes only servants with reviewed CN official evidence", () => {
   assert.equal(servants[0]?.release.status, "released");
   assert.equal(servants[0]?.noblePhantasms[0]?.strengthened, false);
   assert.deepEqual(servants[0]?.strengthenings, []);
-  assert.equal(report.approved.length, 1);
+  assert.equal(report.passed.length, 1);
   assert.deepEqual(
     report.blocked.map((entry) => entry.collectionNo),
     [999],
@@ -86,7 +86,7 @@ test("uses the shared official-source host rules", () => {
   invalid.entries[0]!.release.evidence.url = "https://example.com/not-official";
   assert.throws(
     () => applyCnReleaseGate(candidates, invalid),
-    /not an approved CN official source/,
+    /not an allowed CN official source/,
   );
 });
 

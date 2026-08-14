@@ -8,21 +8,17 @@ import type {
   StrengtheningTarget,
 } from "./model.js";
 
-export type ReviewGateStatus = "approved" | "applied" | "not_applied";
-export type ReviewPublicationStatus =
-  | "ready"
-  | "pending_publication"
-  | "blocked"
-  | "bootstrap";
+export type DataGateStatus = "passed" | "applied" | "pending";
+export type DataPublicationStatus = "ready" | "stale" | "blocked" | "bootstrap";
 
-export interface ReviewBlockedCandidate {
+export interface DataMissingSourceCandidate {
   collectionNo: number;
   atlasId: number;
   name: string;
   reason: string;
 }
 
-export interface ReviewReleaseSource {
+export interface DataReleaseSource {
   collectionNo: number;
   servantId: string;
   displayName: string;
@@ -31,10 +27,10 @@ export interface ReviewReleaseSource {
   status: "released" | "announced";
   releasedAt: string;
   evidence: OfficialSource;
-  gateStatus: Extract<ReviewGateStatus, "approved" | "not_applied">;
+  gateStatus: Extract<DataGateStatus, "passed" | "pending">;
 }
 
-export interface ReviewStrengtheningSource {
+export interface DataStrengtheningSource {
   id: string;
   servantId: string;
   status: StrengtheningStatus;
@@ -42,33 +38,33 @@ export interface ReviewStrengtheningSource {
   releasedAt: string;
   evidence: OfficialSource;
   summary: string[];
-  gateStatus: Extract<ReviewGateStatus, "applied" | "not_applied">;
+  gateStatus: Extract<DataGateStatus, "applied" | "pending">;
 }
 
-export interface ReviewRankingSummary {
+export interface DataRankingSummary {
   mode: RankingMode;
   asOf: string;
   revision: number;
   entryCount: number;
 }
 
-export interface ReviewPublicationSummary {
-  status: ReviewPublicationStatus;
+export interface DataPublicationSummary {
+  status: DataPublicationStatus;
   datasetVersion: string;
   sourceStatus: DatasetMetadata["sourceStatus"];
-  reviewedSourceVersions: DatasetSourceVersions;
+  sourceManifestVersions: DatasetSourceVersions;
   gateSourceVersions: DatasetSourceVersions;
   publishedSourceVersions?: DatasetSourceVersions;
-  pendingSourceVersions: Array<keyof DatasetSourceVersions>;
+  staleSourceVersions: Array<keyof DatasetSourceVersions>;
   blockers: string[];
 }
 
-export interface ReviewDashboard {
+export interface DataStatusDashboard {
   generatedAt: string;
   counts: {
     atlasCandidates: number;
-    approvedReleases: number;
-    blockedCandidates: number;
+    passedReleases: number;
+    missingSourceCandidates: number;
     strengtheningEvents: number;
     rankingEntries: number;
   };
@@ -78,9 +74,9 @@ export interface ReviewDashboard {
     skippedCount: number;
     warningCount: number;
   };
-  publication: ReviewPublicationSummary;
-  blockedCandidates: ReviewBlockedCandidate[];
-  releaseSources: ReviewReleaseSource[];
-  strengtheningSources: ReviewStrengtheningSource[];
-  rankings: ReviewRankingSummary[];
+  publication: DataPublicationSummary;
+  missingSourceCandidates: DataMissingSourceCandidate[];
+  releaseSources: DataReleaseSource[];
+  strengtheningSources: DataStrengtheningSource[];
+  rankings: DataRankingSummary[];
 }

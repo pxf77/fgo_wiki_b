@@ -1,5 +1,5 @@
-// Read-only review API client.
-import type { ReviewDashboard } from "@fgo-wiki/domain";
+// Read-only data-status API client.
+import type { DataStatusDashboard } from "@fgo-wiki/domain";
 
 function apiBaseUrl(): string {
   return (import.meta.env.VITE_API_BASE_URL ?? "http://localhost:3001").replace(
@@ -8,10 +8,10 @@ function apiBaseUrl(): string {
   );
 }
 
-export async function fetchReviewDashboard(
+export async function fetchDataStatus(
   fetcher: typeof fetch = fetch,
-): Promise<ReviewDashboard> {
-  const response = await fetcher(`${apiBaseUrl()}/api/internal/review/dashboard`, {
+): Promise<DataStatusDashboard> {
+  const response = await fetcher(`${apiBaseUrl()}/api/internal/data-status`, {
     headers: {
       accept: "application/json",
     },
@@ -26,8 +26,8 @@ export async function fetchReviewDashboard(
     } catch {
       // Preserve the HTTP status when a proxy returns a non-JSON body.
     }
-    throw new Error(`审核数据读取失败：${detail}`);
+    throw new Error(`数据状态读取失败：${detail}`);
   }
 
-  return (await response.json()) as ReviewDashboard;
+  return (await response.json()) as DataStatusDashboard;
 }

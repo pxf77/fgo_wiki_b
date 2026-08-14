@@ -2,12 +2,12 @@ import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import type {
+  DataMissingSourceCandidate,
+  DataReleaseSource,
+  DataStatusDashboard,
+  DataStrengtheningSource,
   DatasetSourceVersions,
   OfficialSource,
-  ReviewBlockedCandidate,
-  ReviewDashboard,
-  ReviewReleaseSource,
-  ReviewStrengtheningSource,
   ServantClass,
   StrengtheningStatus,
   StrengtheningTarget,
@@ -20,7 +20,7 @@ function repositoryPath(value: string): string {
   return resolve(repositoryRoot, value);
 }
 
-export interface ReviewFileConfig {
+export interface DataStatusFileConfig {
   normalizationReportPath: string;
   releaseSourcePath: string;
   releaseGateReportPath: string;
@@ -57,8 +57,8 @@ interface ReleaseSourceManifest {
 
 interface ReleaseGateReport {
   evidenceVersion: string;
-  approved: Array<{ servantId: string }>;
-  blocked: ReviewBlockedCandidate[];
+  passed: Array<{ servantId: string }>;
+  blocked: DataMissingSourceCandidate[];
 }
 
 interface StrengtheningSourceEntry {
@@ -81,20 +81,20 @@ interface StrengtheningGateReport {
   applied: Array<{ eventId: string }>;
 }
 
-export interface ReviewRepository {
-  getDashboard(): Promise<ReviewDashboard>;
+export interface DataStatusRepository {
+  getDashboard(): Promise<DataStatusDashboard>;
 }
 
-export interface FileReviewRepositoryOptions {
-  files: ReviewFileConfig;
+export interface FileDataStatusRepositoryOptions {
+  files: DataStatusFileConfig;
   dataRepository: DataRepository;
   now?: () => Date;
 }
 
-export class ReviewDataUnavailableError extends Error {
+export class DataStatusUnavailableError extends Error {
   public constructor(message: string) {
     super(message);
-    this.name = "ReviewDataUnavailableError";
+    this.name = "DataStatusUnavailableError";
   }
 }
 
@@ -103,8 +103,8 @@ async function readJson<T>(path: string): Promise<T> {
     return JSON.parse(await readFile(path, "utf8")) as T;
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
-    throw new ReviewDataUnavailableError(
-      `Review data is unavailable at ${path}: ${detail}`,
+    throw new DataStatusUnavailableError(
+      `Data status input is unavailable at ${path}: ${detail}`,
     );
   }
 }
@@ -119,9 +119,9 @@ function countRankingEntries(
   return rankings.reduce((total, ranking) => total + ranking.entries.length, 0);
 }
 
-export function loadReviewFileConfig(
+export function loadDataStatusFileConfig(
   environment: NodeJS.ProcessEnv = process.env,
-): ReviewFileConfig {
+): DataStatusFileConfig {
   return {
     normalizationReportPath: repositoryPath(
       environment.ATLAS_NORMALIZATION_REPORT_PATH ??
@@ -146,13 +146,13 @@ export function loadReviewFileConfig(
   };
 }
 
-export function createFileReviewRepository(
-  options: FileReviewRepositoryOptions,
-): ReviewRepository {
+export function createFileDataStatusRepository(
+  options: FileDataStatusRepositoryOptions,
+): DataStatusRepository {
   const now = options.now ?? (() => new Date());
 
   return {
-    async getDashboard(): Promise<ReviewDashboard> {
+    async getDashboard(): Promise<DataStatusDashboard> {
       const [
         normalization,
         releaseSource,
@@ -174,15 +174,15 @@ export function createFileReviewRepository(
       ]);
 
       const snapshot = options.dataRepository.getSnapshot();
-      const approvedServants = new Set(
-        releaseGate.approved.map((entry) => entry.servantId),
+      const passedServants = new Set(
+        releaseGate.passed.map((entry) => entry.servantId),
       );
       const appliedEvents = new Set(
         strengtheningGate.applied.map((entry) => entry.eventId),
       );
 
       const releaseSources = releaseSource.entries
-        .map<ReviewReleaseSource>((entry) => ({
+        .map<DataReleaseSource>((entry) => ({
           collectionNo: entry.collectionNo,
           servantId: entry.servantId,
           displayName: entry.displayName,
@@ -191,14 +191,14 @@ export function createFileReviewRepository(
           status: entry.release.status,
           releasedAt: entry.release.releasedAt,
           evidence: entry.release.evidence,
-          gateStatus: approvedServants.has(entry.servantId)
-            ? "approved"
-            : "not_applied",
+          gateStatus: passedServants.has(entry.servantId)
+            ? "passed"
+            : "pending",
         }))
         .sort((left, right) => left.collectionNo - right.collectionNo);
 
       const strengtheningSources = strengtheningSource.events
-        .map<ReviewStrengtheningSource>((entry) => ({
+        .map<DataStrengtheningSource>((entry) => ({
           id: entry.id,
           servantId: entry.servantId,
           status: entry.status,
@@ -206,9 +206,7 @@ export function createFileReviewRepository(
           releasedAt: entry.releasedAt,
           evidence: entry.evidence,
           summary: [...entry.summary],
-          gateStatus: appliedEvents.has(entry.id)
-            ? "applied"
-            : "not_applied",
+          gateStatus: appliedEvents.has(entry.id) ? "applied" : "pending",
         }))
         .sort(
           (left, right) =>
@@ -216,7 +214,7 @@ export function createFileReviewRepository(
             left.id.localeCompare(right.id),
         );
 
-      const reviewedSourceVersions: DatasetSourceVersions = {
+      const sourceManifestVersions: DatasetSourceVersions = {
         releaseEvidence: releaseSource.version,
         strengtheningEvidence: strengtheningSource.version,
       };
@@ -225,35 +223,35 @@ export function createFileReviewRepository(
         strengtheningEvidence: strengtheningGate.evidenceVersion,
       };
       const publishedSourceVersions = snapshot.metadata.sourceVersions;
-      const pendingSourceVersions = sourceVersionKeys().filter(
+      const staleSourceVersions = sourceVersionKeys().filter(
         (key) =>
-          publishedSourceVersions?.[key] !== reviewedSourceVersions[key],
+          publishedSourceVersions?.[key] !== sourceManifestVersions[key],
       );
       const blockers: string[] = [];
 
       for (const key of sourceVersionKeys()) {
-        if (gateSourceVersions[key] !== reviewedSourceVersions[key]) {
+        if (gateSourceVersions[key] !== sourceManifestVersions[key]) {
           blockers.push(
-            `${key} gate version ${gateSourceVersions[key]} does not match reviewed source ${reviewedSourceVersions[key]}`,
+            `${key} gate version ${gateSourceVersions[key]} does not match source manifest ${sourceManifestVersions[key]}`,
           );
         }
       }
 
-      const unappliedReleaseCount = releaseSources.filter(
-        (entry) => entry.gateStatus === "not_applied",
+      const pendingReleaseCount = releaseSources.filter(
+        (entry) => entry.gateStatus === "pending",
       ).length;
-      if (unappliedReleaseCount > 0) {
+      if (pendingReleaseCount > 0) {
         blockers.push(
-          `${unappliedReleaseCount} reviewed release source entries are not applied`,
+          `${pendingReleaseCount} release source entries have not passed the gate`,
         );
       }
 
-      const unappliedStrengtheningCount = strengtheningSources.filter(
-        (entry) => entry.gateStatus === "not_applied",
+      const pendingStrengtheningCount = strengtheningSources.filter(
+        (entry) => entry.gateStatus === "pending",
       ).length;
-      if (unappliedStrengtheningCount > 0) {
+      if (pendingStrengtheningCount > 0) {
         blockers.push(
-          `${unappliedStrengtheningCount} reviewed strengthening events are not applied`,
+          `${pendingStrengtheningCount} strengthening events have not been applied`,
         );
       }
 
@@ -262,16 +260,16 @@ export function createFileReviewRepository(
           ? "bootstrap"
           : blockers.length > 0
             ? "blocked"
-            : pendingSourceVersions.length > 0
-              ? "pending_publication"
+            : staleSourceVersions.length > 0
+              ? "stale"
               : "ready";
 
       return {
         generatedAt: now().toISOString(),
         counts: {
           atlasCandidates: normalization.acceptedCount,
-          approvedReleases: releaseGate.approved.length,
-          blockedCandidates: releaseGate.blocked.length,
+          passedReleases: releaseGate.passed.length,
+          missingSourceCandidates: releaseGate.blocked.length,
           strengtheningEvents: strengtheningSource.events.length,
           rankingEntries: countRankingEntries(snapshot.rankings),
         },
@@ -285,15 +283,15 @@ export function createFileReviewRepository(
           status: publicationStatus,
           datasetVersion: snapshot.metadata.datasetVersion,
           sourceStatus: snapshot.metadata.sourceStatus,
-          reviewedSourceVersions,
+          sourceManifestVersions,
           gateSourceVersions,
           ...(publishedSourceVersions
             ? { publishedSourceVersions }
             : {}),
-          pendingSourceVersions,
+          staleSourceVersions,
           blockers,
         },
-        blockedCandidates: [...releaseGate.blocked].sort(
+        missingSourceCandidates: [...releaseGate.blocked].sort(
           (left, right) => left.collectionNo - right.collectionNo,
         ),
         releaseSources,
@@ -309,12 +307,12 @@ export function createFileReviewRepository(
   };
 }
 
-export function createReviewRepository(
+export function createDataStatusRepository(
   dataRepository: DataRepository,
   environment: NodeJS.ProcessEnv = process.env,
-): ReviewRepository {
-  return createFileReviewRepository({
-    files: loadReviewFileConfig(environment),
+): DataStatusRepository {
+  return createFileDataStatusRepository({
+    files: loadDataStatusFileConfig(environment),
     dataRepository,
   });
 }

@@ -50,7 +50,7 @@ export interface CnReleaseEvidenceManifest {
 export interface CnReleaseGateReport {
   evidenceVersion: string;
   reviewedAt: string;
-  approved: Array<{
+  passed: Array<{
     collectionNo: number;
     servantId: string;
     atlasId: number;
@@ -225,7 +225,7 @@ export function applyCnReleaseGate(
   const evidenceCollectionNumbers = new Set<number>();
   const servantIds = new Set<string>();
   const servants: Servant[] = [];
-  const approved: CnReleaseGateReport["approved"] = [];
+  const passed: CnReleaseGateReport["passed"] = [];
 
   for (const entry of manifest.entries) {
     if (evidenceCollectionNumbers.has(entry.collectionNo)) {
@@ -274,7 +274,7 @@ export function applyCnReleaseGate(
       role: [...entry.overrides.role],
       updatedAt: manifest.reviewedAt.slice(0, 10),
     });
-    approved.push({
+    passed.push({
       collectionNo: entry.collectionNo,
       servantId: entry.servantId,
       atlasId: candidate.atlasId,
@@ -295,7 +295,7 @@ export function applyCnReleaseGate(
       collectionNo: candidate.collectionNo,
       atlasId: candidate.atlasId,
       name: candidate.name,
-      reason: "no reviewed CN official release evidence",
+      reason: "no CN release source entry",
     }));
 
   return {
@@ -303,7 +303,7 @@ export function applyCnReleaseGate(
     report: {
       evidenceVersion: manifest.version,
       reviewedAt: manifest.reviewedAt,
-      approved,
+      passed,
       blocked,
     },
   };

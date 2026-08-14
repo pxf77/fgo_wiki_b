@@ -11,7 +11,7 @@ The canonical output is a versioned CN data snapshot consumed by Web, PWA and na
 - `packages/filter-engine` owns deterministic servant filtering.
 - `packages/ranking-engine` owns ranking selection and ordering, not editorial tier decisions.
 - `packages/damage-engine` owns deterministic calculations.
-- `rankings/cn` owns human-reviewed ranking entries.
+- `rankings/cn` owns Git-reviewed ranking entries.
 - `data/cn-release-evidence.json` owns CN servant release decisions and their official evidence.
 - `data/cn-strengthening-evidence.json` owns CN skill/NP strengthening events and their official evidence.
 - `data/fixtures` is test input only and must never be published as production data.
@@ -26,7 +26,7 @@ Official source parsing and host policy are owned by `apps/worker/src/official-e
 
 ## Ranking policy
 
-AI may draft change explanations, but may not publish a tier. Every published ranking snapshot requires a human-reviewed source file and a change reason.
+AI may draft change explanations, but may not publish a tier. Every published ranking snapshot requires a Git-reviewed source file and a change reason.
 
 ## Region policy
 
@@ -43,3 +43,9 @@ A released strengthening event must target a release-gated servant and valid NP/
 A reviewed snapshot must derive `metadata.sourceVersions` from the release-gate and strengthening-gate reports. Do not manually repeat evidence versions in ranking files, environment variables or another manifest.
 
 The version-scoped `release.json` and short-cache `latest.json` must carry the same source status and evidence versions as the snapshot metadata. Publish immutable version objects before replacing `latest.json`.
+
+## Human review boundary
+
+GitHub Pull Requests are the only human approval boundary. CI gates validate deterministic contracts; `apps/admin` only projects read-only data status.
+
+Do not add approval tables, approval APIs, browser decision state, approval state machines, or Git/database synchronization. Network access controls for internal status endpoints are infrastructure concerns, not a second approval system.

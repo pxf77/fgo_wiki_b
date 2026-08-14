@@ -52,15 +52,19 @@ Coverage gaps are informational. Missing source candidates do not block publicat
 
 `apps/web` must load the generated `DatasetSnapshot` during static generation. Business pages and client components must receive that snapshot as data and must not import `bootstrapSnapshot` directly.
 
-A normal Web build requires `metadata.sourceStatus=reviewed`. Missing, malformed or Bootstrap snapshot input must fail the build. `ALLOW_BOOTSTRAP_DATA=true` is an explicit development-only fallback, not a production default.
+`apps/mobile` must embed the generated `DatasetSnapshot` during the Vite build. The shipped Capacitor Web bundle must start from that embedded reviewed snapshot and must not import `bootstrapSnapshot` as its normal initial dataset.
 
-Generate `data/generated/latest/snapshot.json` before running the Next.js build. CI and release workflows must preserve this order:
+Normal Web and Mobile builds require `metadata.sourceStatus=reviewed`. Missing, malformed or Bootstrap snapshot input must fail the build. `ALLOW_BOOTSTRAP_DATA=true` is an explicit development-only fallback, not a production default.
+
+The mobile cache may replace the bundled snapshot only when it has the same dataset identity or a later publication time. An older device cache must not downgrade data shipped in a newer app bundle. Online refreshes must also reject Bootstrap responses.
+
+Generate `data/generated/latest/snapshot.json` before running the Next.js and Vite builds. CI and release workflows must preserve this order:
 
 ```text
-prepare facts -> build snapshot -> build Web/PWA
+prepare facts -> build snapshot -> build Web/PWA and Mobile bundle
 ```
 
-Bootstrap data remains valid for isolated tests and explicit local development only.
+CI must verify that the final Mobile JavaScript bundle contains the reviewed dataset version and every released servant ID from the input snapshot. Bootstrap data remains valid for isolated tests and explicit local development only.
 
 ## Publication policy
 

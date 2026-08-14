@@ -51,7 +51,7 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 
 Nginx 只代理 `api.example.cn`。Web 的 `apps/web/out/` 目录由 CI 上传 COS。
 
-## 5. 数据核验、Web 构建与快照发布
+## 5. 数据核验、Web/App 构建与快照发布
 
 候选数据依次经过国服实装与强化事件事实门禁：
 
@@ -61,15 +61,31 @@ pnpm data:prepare
 pnpm snapshot:build
 ```
 
-随后再构建 Web/PWA：
+随后构建 Web/PWA 和 Capacitor Web Bundle：
 
 ```bash
 ALLOW_BOOTSTRAP_DATA=false \
 SNAPSHOT_PATH=./data/generated/latest/snapshot.json \
 pnpm build
+
+pnpm --filter @fgo-wiki/mobile verify:embedded
 ```
 
-Next.js 静态页面会在构建期读取该 Snapshot。正式构建要求 `metadata.sourceStatus=reviewed`；Snapshot 缺失、结构无效或仍是 Bootstrap 数据时应直接失败。不要先构建 Web 再生成 Snapshot，否则静态产物不会包含当前 reviewed 从者数据。
+Next.js 和 Vite 均在构建期读取同一份 Snapshot。正式构建要求 `metadata.sourceStatus=reviewed`；Snapshot 缺失、结构无效或仍是 Bootstrap 数据时应直接失败。不要先构建客户端再生成 Snapshot，否则静态站点和 App 首包不会包含当前 reviewed 从者数据。
+
+移动端构建结果位于：
+
+```text
+apps/mobile/dist/
+```
+
+该目录是 Capacitor 的 `webDir`。生成 Android/iOS 工程后执行：
+
+```bash
+pnpm --filter @fgo-wiki/mobile cap:sync
+```
+
+设备本地缓存只会在同一 Dataset 或发布时间更新时替换安装包内置 Snapshot，避免旧缓存降级新安装包。联网更新接口返回 Bootstrap 数据时，客户端会拒绝替换当前 reviewed 数据。
 
 正式发布前检查：
 
@@ -88,7 +104,8 @@ data/reports/cn-class-catalog.json
 2. 确认 CDN 可读取 `snapshot.json`、`metadata.json` 和 `release.json`。
 3. 核对 `release.json.sourceVersions` 与两份门禁报告一致。
 4. 上传 `apps/web/out/` 到 Web 静态站点路径。
-5. 最后覆盖 `snapshots/latest.json`，设置 60 秒缓存。
+5. 使用 `apps/mobile/dist/` 同步 Capacitor 原生工程并构建 AAB/IPA。
+6. 最后覆盖 `snapshots/latest.json`，设置 60 秒缓存。
 
 发布脚本见 `infra/scripts/publish-snapshot.sh`。生产环境可将脚本中的上传命令替换为腾讯云 CLI、COSCMD 或 CI 官方 Action。GitHub 的定时核验工作流只生成 Artifact，不直接更新 COS。
 

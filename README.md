@@ -3,7 +3,7 @@
 面向 FGO 简中服的版本化强度榜、从者筛选与账号决策工具。项目采用一套领域模型、两个客户端壳和一个快照发布服务：
 
 - **Web/PWA**：Next.js 静态导出，在构建期读取 reviewed Snapshot，面向 COS + CDN/EdgeOne、搜索引擎和分享链接。
-- **Android/iOS**：React + Vite + Capacitor，内置离线快照并支持后续原生能力。
+- **Android/iOS**：React + Vite + Capacitor，在构建期内置 reviewed Snapshot，并支持设备缓存和联网更新。
 - **API**：Fastify，提供从者、榜单、快照及内部只读数据状态接口。
 - **Worker**：摄取 Atlas CN 数据，执行国服实装/强化事实门禁，生成职介覆盖目录并编译不可变快照。
 - **PostgreSQL**：保存标准化从者版本、榜单快照和用户数据。
@@ -20,6 +20,7 @@ Atlas CN export
   -> Git-managed ranking source
   -> immutable JSON/Brotli snapshot
   -> Web/PWA static export
+  -> Capacitor embedded bundle
 ```
 
 ## 目录
@@ -71,6 +72,7 @@ pnpm data:sync:atlas
 pnpm data:prepare
 pnpm snapshot:build
 pnpm build
+pnpm --filter @fgo-wiki/mobile verify:embedded
 ```
 
 已有规范化候选和门禁报告时，可单独刷新职介目录：
@@ -116,6 +118,36 @@ ALLOW_BOOTSTRAP_DATA=true
 ```
 
 业务页面和筛选组件不直接导入 `bootstrapSnapshot`；Bootstrap 只用于测试和明确启用的开发回退。
+
+## App 首包数据源
+
+Vite 构建同样读取：
+
+```text
+SNAPSHOT_PATH=./data/generated/latest/snapshot.json
+```
+
+并将 reviewed Snapshot 编译进 `apps/mobile/dist/`。Capacitor 的 `webDir` 指向该目录，因此首次安装、无网络和 API 故障时仍能直接浏览当前国服事实数据。
+
+移动端启动顺序：
+
+```text
+读取安装包内置 reviewed Snapshot
+  -> 检查设备本地缓存
+  -> 仅在缓存同版本或发布时间更新时采用缓存
+  -> 用户触发检查更新后读取 API Snapshot
+```
+
+旧设备缓存不会覆盖新安装包中更新的数据；更新接口若返回 Bootstrap Snapshot，也不会替换当前 reviewed 数据。
+
+构建后可执行：
+
+```bash
+pnpm --filter @fgo-wiki/mobile verify:embedded
+pnpm --filter @fgo-wiki/mobile cap:sync
+```
+
+前一命令会确认最终 JavaScript Bundle 包含当前 Dataset 版本和 Snapshot 中全部已发布从者 ID。
 
 ## 数据事实边界
 
@@ -213,6 +245,7 @@ Bootstrap 数据使用：
 ```text
 上传不可变版本目录
   -> 上传版本级 release.json
+  -> 上传 Web 静态产物
   -> 最后更新短缓存 latest.json
 ```
 
@@ -248,8 +281,9 @@ PostgreSQL          -> TencentDB for PostgreSQL（同 VPC 内网）
 
 ## 当前完成范围
 
-- Web/PWA 在构建期消费 reviewed Snapshot，静态首页与 API 使用同一份发布数据
-- Capacitor App、Fastify API 和只读数据状态台骨架
+- Web/PWA 与 Capacitor App 均在构建期消费同一份 reviewed Snapshot
+- 移动端离线首包、缓存升级保护和联网更新机制
+- Fastify API 和只读数据状态台骨架
 - 国服从者、宝具、强化时间线、榜单和快照领域模型
 - Atlas CN live 数据摄取与当前宝具版本规范化
 - 实装、强化、宝具身份和榜单引用的确定性 Gate
@@ -257,6 +291,6 @@ PostgreSQL          -> TencentDB for PostgreSQL（同 VPC 内网）
 - 复合 Dataset 身份与不可变发布指针
 - PR 显式来源版本和榜单 revision 门禁
 - PostgreSQL/Drizzle、Docker Compose 与腾讯云发布骨架
-- 冻结依赖、类型检查、测试、Snapshot 优先构建、生产构建和 Artifact CI
+- 冻结依赖、类型检查、测试、Snapshot 优先构建、Web/Mobile 产物校验和 Artifact CI
 
-下一阶段继续按职介目录分批补齐 Archer 的国服实装来源和强化事件，并将移动端默认数据也切换到生成的 reviewed Snapshot；完整技能效果结构化与真实腾讯云线上部署仍待后续实施。
+下一阶段继续按职介目录分批补齐 Archer 的国服实装来源和强化事件，并生成 Android/iOS 原生工程及完成真实腾讯云线上部署验证；完整技能效果结构化仍待后续实施。

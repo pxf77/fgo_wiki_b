@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { FgoWikiApiClient } from "@fgo-wiki/api-client";
 import {
-  bootstrapSnapshot,
+  assertDatasetSnapshot,
   type CardColor,
   type DatasetSnapshot,
   type NoblePhantasmScope,
@@ -10,24 +10,48 @@ import { filterServants, type ServantFilter } from "@fgo-wiki/filter-engine";
 import { findRanking } from "@fgo-wiki/ranking-engine";
 import { ServantCard } from "@fgo-wiki/shared-ui";
 import { BrowserSnapshotStore } from "@fgo-wiki/snapshot-client";
+import { selectPreferredSnapshot } from "./startup-snapshot";
 
 const store = new BrowserSnapshotStore("fgo-wiki:mobile-dataset");
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL as string | undefined;
+const bundledSnapshot = __FGO_WIKI_EMBEDDED_SNAPSHOT__;
 
 export function App() {
-  const [snapshot, setSnapshot] = useState<DatasetSnapshot>(bootstrapSnapshot);
+  const [snapshot, setSnapshot] = useState<DatasetSnapshot>(() => bundledSnapshot);
   const [color, setColor] = useState<CardColor | "all">("all");
   const [scope, setScope] = useState<NoblePhantasmScope | "all">("all");
   const [favorites, setFavorites] = useState<string[]>(() => {
     const value = localStorage.getItem("fgo-wiki:favorites");
     return value ? (JSON.parse(value) as string[]) : [];
   });
-  const [message, setMessage] = useState("离线数据已就绪");
+  const [message, setMessage] = useState("内置国服事实数据已就绪");
 
   useEffect(() => {
-    void store.get().then((cached) => {
-      if (cached) setSnapshot(cached);
-    });
+    let active = true;
+    void store
+      .get()
+      .then((cached) => {
+        if (!active || !cached) return;
+        const preferred = selectPreferredSnapshot(bundledSnapshot, cached);
+        setSnapshot(preferred);
+        if (
+          preferred === cached &&
+          cached.metadata.datasetVersion !== bundledSnapshot.metadata.datasetVersion
+        ) {
+          setMessage(`已载入本地缓存 ${cached.metadata.datasetVersion}`);
+        } else if (
+          preferred === bundledSnapshot &&
+          cached.metadata.datasetVersion !== bundledSnapshot.metadata.datasetVersion
+        ) {
+          setMessage("已忽略旧版或非 reviewed 本地缓存");
+        }
+      })
+      .catch(() => {
+        if (active) setMessage("本地缓存不可用，继续使用内置国服事实数据");
+      });
+    return () => {
+      active = false;
+    };
   }, []);
 
   const servants = useMemo(() => {
@@ -58,6 +82,20 @@ export function App() {
     try {
       const client = new FgoWikiApiClient({ baseUrl: apiBaseUrl });
       const latest = await client.getLatestDataset();
+      assertDatasetSnapshot(latest);
+      if (latest.metadata.sourceStatus !== "reviewed") {
+        throw new Error("更新端当前未发布 reviewed 国服事实快照");
+      }
+
+      const preferred = selectPreferredSnapshot(snapshot, latest);
+      if (
+        preferred === snapshot &&
+        latest.metadata.datasetVersion !== snapshot.metadata.datasetVersion
+      ) {
+        setMessage(`当前版本 ${snapshot.metadata.datasetVersion} 不旧于更新端`);
+        return;
+      }
+
       await store.put(latest);
       setSnapshot(latest);
       setMessage(`已更新到 ${latest.metadata.datasetVersion}`);

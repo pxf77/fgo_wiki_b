@@ -1,3 +1,4 @@
+// Public and internal HTTP routes.
 import cors from "@fastify/cors";
 import type {
   CardColor,
@@ -10,10 +11,15 @@ import { findRanking, sortRankingEntries } from "@fgo-wiki/ranking-engine";
 import Fastify, { type FastifyInstance } from "fastify";
 import type { ApiConfig } from "./config.js";
 import type { DataRepository } from "./repository.js";
+import {
+  ReviewDataUnavailableError,
+  type ReviewRepository,
+} from "./review-repository.js";
 
 export interface BuildAppOptions {
   config: ApiConfig;
   repository: DataRepository;
+  reviewRepository?: ReviewRepository;
 }
 
 interface ServantQuerystring {
@@ -117,6 +123,24 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
     reply.header("etag", `\"${snapshot.metadata.datasetVersion}\"`);
     reply.header("cache-control", "public, max-age=60");
     return snapshot;
+  });
+
+  app.get("/api/internal/review/dashboard", async (_request, reply) => {
+    reply.header("cache-control", "no-store");
+    if (!options.reviewRepository) {
+      return reply.code(503).send({
+        message: "Review repository is not configured",
+      });
+    }
+
+    try {
+      return await options.reviewRepository.getDashboard();
+    } catch (error) {
+      if (error instanceof ReviewDataUnavailableError) {
+        return reply.code(503).send({ message: error.message });
+      }
+      throw error;
+    }
   });
 
   return app;

@@ -9,6 +9,8 @@ services:
       DATABASE_URL: ${DATABASE_URL}
       CORS_ORIGIN: ${CORS_ORIGIN}
       SNAPSHOT_PATH: /workspace/data/generated/latest/snapshot.json
+    volumes:
+      - ./data:/workspace/data:ro
     restart: unless-stopped
 
   worker:

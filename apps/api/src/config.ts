@@ -22,11 +22,15 @@ export function loadConfig(environment: NodeJS.ProcessEnv = process.env): ApiCon
   return {
     host: environment.HOST ?? "0.0.0.0",
     port,
-    corsOrigins: (environment.CORS_ORIGIN ?? "http://localhost:3000")
+    corsOrigins: (
+      environment.CORS_ORIGIN ??
+      "http://localhost:3000,http://localhost:4173,http://localhost:4174"
+    )
       .split(",")
       .map((origin) => origin.trim())
       .filter(Boolean),
     dataSource,
-    snapshotPath: environment.SNAPSHOT_PATH ?? "./data/generated/latest/snapshot.json",
+    snapshotPath:
+      environment.SNAPSHOT_PATH ?? "./data/generated/latest/snapshot.json",
   };
 }

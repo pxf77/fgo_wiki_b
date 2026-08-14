@@ -1,17 +1,21 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import {
-  bootstrapSnapshot,
-  type CardColor,
-  type NoblePhantasmScope,
-  type RankingMode,
+import type {
+  CardColor,
+  DatasetSnapshot,
+  NoblePhantasmScope,
+  RankingMode,
 } from "@fgo-wiki/domain";
 import { filterServants, type ServantFilter } from "@fgo-wiki/filter-engine";
 import { findRanking } from "@fgo-wiki/ranking-engine";
 import { ServantCard } from "@fgo-wiki/shared-ui";
 
-export function ServantExplorer() {
+export interface ServantExplorerProps {
+  snapshot: DatasetSnapshot;
+}
+
+export function ServantExplorer({ snapshot }: ServantExplorerProps) {
   const [query, setQuery] = useState("");
   const [color, setColor] = useState<CardColor | "all">("all");
   const [scope, setScope] = useState<NoblePhantasmScope | "all">("all");
@@ -33,11 +37,17 @@ export function ServantExplorer() {
     if (strengthening !== "all") {
       filter.npStrengthened = strengthening === "strengthened";
     }
-    return filterServants(bootstrapSnapshot.servants, filter);
-  }, [color, minimumCharge, query, scope, strengthening]);
+    return filterServants(snapshot.servants, filter);
+  }, [color, minimumCharge, query, scope, snapshot.servants, strengthening]);
 
-  const ranking = findRanking(bootstrapSnapshot.rankings, mode);
-  const rankingByServant = new Map(ranking?.entries.map((entry) => [entry.servantId, entry]));
+  const ranking = useMemo(
+    () => findRanking(snapshot.rankings, mode),
+    [mode, snapshot.rankings],
+  );
+  const rankingByServant = useMemo(
+    () => new Map(ranking?.entries.map((entry) => [entry.servantId, entry])),
+    [ranking],
+  );
 
   return (
     <section className="explorer" aria-labelledby="explorer-title">

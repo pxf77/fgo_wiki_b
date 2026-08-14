@@ -2,7 +2,7 @@
 
 面向 FGO 简中服的版本化强度榜、从者筛选与账号决策工具。项目采用一套领域模型、两个客户端壳和一个快照发布服务：
 
-- **Web/PWA**：Next.js 静态导出，面向 COS + CDN/EdgeOne、搜索引擎和分享链接。
+- **Web/PWA**：Next.js 静态导出，在构建期读取 reviewed Snapshot，面向 COS + CDN/EdgeOne、搜索引擎和分享链接。
 - **Android/iOS**：React + Vite + Capacitor，内置离线快照并支持后续原生能力。
 - **API**：Fastify，提供从者、榜单、快照及内部只读数据状态接口。
 - **Worker**：摄取 Atlas CN 数据，执行国服实装/强化事实门禁，生成职介覆盖目录并编译不可变快照。
@@ -19,6 +19,7 @@ Atlas CN export
   -> strengthening gate
   -> Git-managed ranking source
   -> immutable JSON/Brotli snapshot
+  -> Web/PWA static export
 ```
 
 ## 目录
@@ -69,6 +70,7 @@ pnpm dev:api
 pnpm data:sync:atlas
 pnpm data:prepare
 pnpm snapshot:build
+pnpm build
 ```
 
 已有规范化候选和门禁报告时，可单独刷新职介目录：
@@ -83,6 +85,37 @@ pnpm data:catalog
 - [`docs/class-catalog.md`](docs/class-catalog.md)
 - [`docs/data-status-dashboard.md`](docs/data-status-dashboard.md)
 - [`docs/tencent-cloud-deployment.md`](docs/tencent-cloud-deployment.md)
+
+## Web/PWA 构建数据源
+
+静态页面在构建期读取：
+
+```text
+SNAPSHOT_PATH=./data/generated/latest/snapshot.json
+```
+
+默认要求该文件存在且：
+
+```text
+metadata.sourceStatus = reviewed
+```
+
+因此正式构建顺序必须是：
+
+```text
+事实源 Gate
+  -> Snapshot 构建
+  -> Next.js 静态构建
+  -> 上传 apps/web/out
+```
+
+Snapshot 缺失、结构无效或仍是 Bootstrap 数据时，Web 构建会失败，不会静默把启动样例发布到 COS。仅在本地开发确实需要回退时，显式设置：
+
+```text
+ALLOW_BOOTSTRAP_DATA=true
+```
+
+业务页面和筛选组件不直接导入 `bootstrapSnapshot`；Bootstrap 只用于测试和明确启用的开发回退。
 
 ## 数据事实边界
 
@@ -215,7 +248,8 @@ PostgreSQL          -> TencentDB for PostgreSQL（同 VPC 内网）
 
 ## 当前完成范围
 
-- Web/PWA、Capacitor App、Fastify API 和只读数据状态台骨架
+- Web/PWA 在构建期消费 reviewed Snapshot，静态首页与 API 使用同一份发布数据
+- Capacitor App、Fastify API 和只读数据状态台骨架
 - 国服从者、宝具、强化时间线、榜单和快照领域模型
 - Atlas CN live 数据摄取与当前宝具版本规范化
 - 实装、强化、宝具身份和榜单引用的确定性 Gate
@@ -223,6 +257,6 @@ PostgreSQL          -> TencentDB for PostgreSQL（同 VPC 内网）
 - 复合 Dataset 身份与不可变发布指针
 - PR 显式来源版本和榜单 revision 门禁
 - PostgreSQL/Drizzle、Docker Compose 与腾讯云发布骨架
-- 冻结依赖、类型检查、测试、生产构建和 Snapshot Artifact CI
+- 冻结依赖、类型检查、测试、Snapshot 优先构建、生产构建和 Artifact CI
 
-下一阶段继续按职介目录分批补齐 Archer 的国服实装来源和强化事件，再扩展至其他职介；完整技能效果结构化与真实腾讯云线上部署仍待后续实施。
+下一阶段继续按职介目录分批补齐 Archer 的国服实装来源和强化事件，并将移动端默认数据也切换到生成的 reviewed Snapshot；完整技能效果结构化与真实腾讯云线上部署仍待后续实施。

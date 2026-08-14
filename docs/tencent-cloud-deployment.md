@@ -10,7 +10,7 @@
 - 1 个 COS 存储桶，开启自定义域名并接入 CDN 或 EdgeOne。
 - CLS 日志主题、DNSPod 域名和 SSL 证书。
 
-Web 静态流量和数据快照由 COS/CDN 承担，CVM 仅运行 API、Worker 与审核后台，不需要首版部署 TKE。
+Web 静态流量和数据快照由 COS/CDN 承担，CVM 仅运行 API、Worker 与只读数据状态服务，不需要首版部署 TKE。
 
 ## 2. 域名
 
@@ -18,10 +18,10 @@ Web 静态流量和数据快照由 COS/CDN 承担，CVM 仅运行 API、Worker �
 www.example.cn       Web/PWA
 api.example.cn       Fastify API
 static.example.cn    COS/CDN 快照与静态资源
-admin.example.cn     内部审核后台
+admin.example.cn     内部只读数据状态台
 ```
 
-中国大陆节点上线前需完成网站与 App 备案。管理后台应限制来源 IP 或置于企业 VPN，并启用独立鉴权。
+中国大陆节点上线前需完成网站与 App 备案。内部数据状态接口应限制来源 IP 或置于企业 VPN；这是访问控制，不是第二套审批系统。
 
 ## 3. 镜像
 
@@ -49,11 +49,11 @@ WORKER_IMAGE=ccr.ccs.tencentyun.com/fgo-wiki/worker:<sha> \
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 ```
 
-Nginx 只代理 `api.example.cn`。Web 的 `out/` 目录由 CI 上传 COS。
+Nginx 只代理 `api.example.cn`。Web 的 `apps/web/out/` 目录由 CI 上传 COS。
 
-## 5. 数据核验与快照发布顺序
+## 5. 数据核验、Web 构建与快照发布
 
-候选数据依次经过国服实装与强化事件证据门禁：
+候选数据依次经过国服实装与强化事件事实门禁：
 
 ```bash
 pnpm data:sync:atlas
@@ -61,22 +61,34 @@ pnpm data:prepare
 pnpm snapshot:build
 ```
 
-正式发布前审阅：
+随后再构建 Web/PWA：
+
+```bash
+ALLOW_BOOTSTRAP_DATA=false \
+SNAPSHOT_PATH=./data/generated/latest/snapshot.json \
+pnpm build
+```
+
+Next.js 静态页面会在构建期读取该 Snapshot。正式构建要求 `metadata.sourceStatus=reviewed`；Snapshot 缺失、结构无效或仍是 Bootstrap 数据时应直接失败。不要先构建 Web 再生成 Snapshot，否则静态产物不会包含当前 reviewed 从者数据。
+
+正式发布前检查：
 
 ```text
 data/reports/atlas-normalization.json
 data/reports/cn-release-gate.json
 data/reports/cn-strengthening-gate.json
+data/reports/cn-class-catalog.json
 ```
 
-快照中的 `metadata.sourceVersions`、版本目录内的 `release.json` 与根目录 `latest.json` 必须记录相同的实装证据和强化证据版本。
+快照中的 `metadata.sourceVersions`、版本目录内的 `release.json` 与根目录 `latest.json` 必须记录相同的实装来源和强化来源版本。
 
 正式发布顺序：
 
 1. 上传 `data/generated/<version>/`，设置一年缓存；该目录包含 `release.json`。
 2. 确认 CDN 可读取 `snapshot.json`、`metadata.json` 和 `release.json`。
 3. 核对 `release.json.sourceVersions` 与两份门禁报告一致。
-4. 最后覆盖 `snapshots/latest.json`，设置 60 秒缓存。
+4. 上传 `apps/web/out/` 到 Web 静态站点路径。
+5. 最后覆盖 `snapshots/latest.json`，设置 60 秒缓存。
 
 发布脚本见 `infra/scripts/publish-snapshot.sh`。生产环境可将脚本中的上传命令替换为腾讯云 CLI、COSCMD 或 CI 官方 Action。GitHub 的定时核验工作流只生成 Artifact，不直接更新 COS。
 

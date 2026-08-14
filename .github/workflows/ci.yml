@@ -32,11 +32,17 @@ jobs:
       - run: pnpm data:prepare:fixture
       - run: pnpm typecheck
       - run: pnpm test
-      - run: pnpm build
       - run: pnpm snapshot:build
+      - run: pnpm build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web-static
+          path: apps/web/out/
+          if-no-files-found: error
       - uses: actions/upload-artifact@v4
         with:
           name: cn-snapshot
           path: |
             data/generated/
             data/reports/cn-class-catalog.json
+          if-no-files-found: error

@@ -37,4 +37,6 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: cn-snapshot
-          path: data/generated/
+          path: |
+            data/generated/
+            data/reports/cn-class-catalog.json

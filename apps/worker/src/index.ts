@@ -1,5 +1,9 @@
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  writeCnClassCatalogFile,
+  type CnClassCatalogReport,
+} from "./class-catalog.js";
 import { buildSnapshot } from "./build-snapshot.js";
 import { normalizeAtlasFile } from "./normalize-atlas.js";
 import { writeCnReleaseGateFiles } from "./release-gate.js";
@@ -24,6 +28,10 @@ const paths = {
   normalizationReport: repositoryPath(
     process.env.ATLAS_NORMALIZATION_REPORT_PATH ?? "data/reports/atlas-normalization.json",
   ),
+  classCatalogReport: repositoryPath(
+    process.env.CN_CLASS_CATALOG_REPORT_PATH ??
+      "data/reports/cn-class-catalog.json",
+  ),
   releaseEvidence: repositoryPath(
     process.env.CN_RELEASE_EVIDENCE_PATH ?? "data/cn-release-evidence.json",
   ),
@@ -47,6 +55,22 @@ const paths = {
   ),
 };
 
+async function buildClassCatalog(): Promise<CnClassCatalogReport> {
+  return writeCnClassCatalogFile(
+    paths.candidates,
+    paths.releaseEvidence,
+    paths.releaseGateReport,
+    paths.strengtheningEvidence,
+    paths.classCatalogReport,
+  );
+}
+
+function catalogSummary(catalog: CnClassCatalogReport): string {
+  const archer = catalog.classes.find((entry) => entry.className === "archer");
+  if (!archer) return "no Archer candidates";
+  return `Archer release ${archer.passedReleases}/${archer.atlasCandidates}, NP strengthening evidence ${archer.evidencedReleasedNps}/${archer.atlasStrengthenedNps}`;
+}
+
 async function prepareData(rawPath: string): Promise<void> {
   const normalization = await normalizeAtlasFile(
     rawPath,
@@ -65,8 +89,9 @@ async function prepareData(rawPath: string): Promise<void> {
     paths.reviewedServants,
     paths.strengtheningGateReport,
   );
+  const catalog = await buildClassCatalog();
   console.log(
-    `Prepared ${releaseGate.passed.length} CN servants and ${strengtheningGate.applied.length} strengthening events from ${normalization.acceptedCount} Atlas candidates; ${releaseGate.blocked.length} candidates remain blocked`,
+    `Prepared ${releaseGate.passed.length} CN servants and ${strengtheningGate.applied.length} strengthening events from ${normalization.acceptedCount} Atlas candidates; ${releaseGate.blocked.length} candidates remain blocked; ${catalogSummary(catalog)}`,
   );
 }
 
@@ -103,9 +128,13 @@ if (command === "snapshot") {
     paths.reviewedServants,
     paths.strengtheningGateReport,
   );
+  const catalog = await buildClassCatalog();
   console.log(
-    `CN gates passed ${releaseReport.passed.length} servants and applied ${strengtheningReport.applied.length} strengthening events`,
+    `CN gates passed ${releaseReport.passed.length} servants and applied ${strengtheningReport.applied.length} strengthening events; ${catalogSummary(catalog)}`,
   );
+} else if (command === "class-catalog") {
+  const catalog = await buildClassCatalog();
+  console.log(`CN class catalog written to ${paths.classCatalogReport}; ${catalogSummary(catalog)}`);
 } else {
   throw new Error(`Unknown worker command: ${command}`);
 }

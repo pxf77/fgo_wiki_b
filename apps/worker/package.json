@@ -12,6 +12,7 @@
     "sync:atlas": "tsx src/index.ts sync-atlas",
     "normalize:atlas": "tsx src/index.ts normalize-atlas",
     "gate:cn": "tsx src/index.ts gate-cn",
+    "catalog:cn": "tsx src/index.ts class-catalog",
     "data:prepare": "tsx src/index.ts prepare-live",
     "data:prepare:fixture": "tsx src/index.ts prepare-fixture",
     "typecheck": "tsc -p tsconfig.json --noEmit",

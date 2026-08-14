@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import type {
+  DataClassCoverage,
   DataMissingSourceCandidate,
   DataReleaseSource,
   DataStatusDashboard,
@@ -22,6 +23,7 @@ function repositoryPath(value: string): string {
 
 export interface DataStatusFileConfig {
   normalizationReportPath: string;
+  classCatalogReportPath: string;
   releaseSourcePath: string;
   releaseGateReportPath: string;
   strengtheningSourcePath: string;
@@ -33,6 +35,10 @@ interface AtlasNormalizationReport {
   acceptedCount: number;
   skipped: unknown[];
   warnings: unknown[];
+}
+
+interface ClassCatalogReport {
+  classes: DataClassCoverage[];
 }
 
 interface ReleaseSourceEntry {
@@ -127,6 +133,10 @@ export function loadDataStatusFileConfig(
       environment.ATLAS_NORMALIZATION_REPORT_PATH ??
         "data/reports/atlas-normalization.json",
     ),
+    classCatalogReportPath: repositoryPath(
+      environment.CN_CLASS_CATALOG_REPORT_PATH ??
+        "data/reports/cn-class-catalog.json",
+    ),
     releaseSourcePath: repositoryPath(
       environment.CN_RELEASE_EVIDENCE_PATH ??
         "data/cn-release-evidence.json",
@@ -155,6 +165,7 @@ export function createFileDataStatusRepository(
     async getDashboard(): Promise<DataStatusDashboard> {
       const [
         normalization,
+        classCatalog,
         releaseSource,
         releaseGate,
         strengtheningSource,
@@ -163,6 +174,7 @@ export function createFileDataStatusRepository(
         readJson<AtlasNormalizationReport>(
           options.files.normalizationReportPath,
         ),
+        readJson<ClassCatalogReport>(options.files.classCatalogReportPath),
         readJson<ReleaseSourceManifest>(options.files.releaseSourcePath),
         readJson<ReleaseGateReport>(options.files.releaseGateReportPath),
         readJson<StrengtheningSourceManifest>(
@@ -291,6 +303,7 @@ export function createFileDataStatusRepository(
           staleSourceVersions,
           blockers,
         },
+        classCoverage: [...classCatalog.classes],
         missingSourceCandidates: [...releaseGate.blocked].sort(
           (left, right) => left.collectionNo - right.collectionNo,
         ),

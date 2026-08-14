@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
-  "version": "2026-08-13-r1",
+  "version": "2026-08-14-r2",
   "region": "CN",
-  "reviewedAt": "2026-08-13T00:00:00.000Z",
+  "reviewedAt": "2026-08-14T00:00:00.000Z",
   "entries": [
     {
       "collectionNo": 311,
@@ -33,6 +33,7 @@
         "noblePhantasms": [
           {
             "id": "baobhan-sith-quick-single",
+            "atlasSourceId": 1031101,
             "name": "痛幻的哭奏",
             "color": "quick",
             "scope": "single",
@@ -73,17 +74,21 @@
         "noblePhantasms": [
           {
             "id": "ptolemy-buster-single",
+            "atlasSourceId": 1039401,
             "name": "月は知らず、久遠の光",
             "color": "buster",
             "scope": "single",
+            "hitCount": 3,
             "effects": ["无视防御"],
             "strengthened": false
           },
           {
             "id": "ptolemy-arts-aoe",
+            "atlasSourceId": 1039402,
             "name": "王之书库",
             "color": "arts",
             "scope": "aoe",
+            "hitCount": 5,
             "effects": ["形态切换", "全体攻击"],
             "strengthened": false
           }
@@ -119,9 +124,11 @@
         "noblePhantasms": [
           {
             "id": "tutankhamun-arts-single",
+            "atlasSourceId": 1042701,
             "name": "暝暗之匣",
             "color": "arts",
             "scope": "single",
+            "hitCount": 4,
             "targetTraits": ["魔性"],
             "effects": ["魔性特攻", "宝具后自身退场"],
             "strengthened": false

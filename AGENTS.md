@@ -15,7 +15,7 @@ The canonical output is a versioned CN data snapshot consumed by Web, PWA and na
 - `data/cn-release-evidence.json` owns CN servant release decisions and their official evidence.
 - `data/cn-strengthening-evidence.json` owns CN skill/NP strengthening events and their official evidence.
 - `data/fixtures` is test input only and must never be published as production data.
-- `apps/worker` owns Atlas ingestion, normalization, evidence gates and snapshot compilation.
+- `apps/worker` owns Atlas ingestion, normalization, evidence gates, class coverage catalog generation and snapshot compilation.
 - `apps/api` owns dynamic HTTP interfaces.
 
 `data/raw`, `data/staged`, `data/normalized`, `data/reports` and `data/generated` are generated work products. Do not edit them as facts or commit them as source data.
@@ -32,11 +32,21 @@ AI may draft change explanations, but may not publish a tier. Every published ra
 
 CN release status must be gated by CN official release evidence. Presence in Atlas or another upstream dataset only creates a candidate; it is never proof of CN availability.
 
-Use Atlas `collectionNo` as the primary cross-source identity. A name fallback may only be used during an explicit migration and must not become a second identity owner.
+Use Atlas `collectionNo` as the primary cross-source servant identity. A name fallback may only be used during an explicit migration and must not become a second identity owner.
+
+Every curated Noble Phantasm in `data/cn-release-evidence.json` must declare `atlasSourceId`. The release gate must verify that the Atlas NP exists and that card, scope and available hit-count facts match. Product NP IDs remain stable public IDs; Atlas source IDs are cross-source identities, not replacement public IDs.
 
 Release overrides must keep `NoblePhantasm.strengthened` at the base value `false`; the strengthening gate rejects pre-marked input. Only `data/cn-strengthening-evidence.json` may derive a released `true` state and timeline entries.
 
 A released strengthening event must target a release-gated servant and valid NP/skill identity. Announced events may be shown in the timeline but must not mutate current strengthened state.
+
+## Class expansion catalog
+
+`data/reports/cn-class-catalog.json` is a generated work queue derived from Atlas candidates, release sources, gate reports and strengthening sources. It is not a fact owner and must never be copied directly into a production source manifest without Git review.
+
+The catalog may generate incomplete release-source drafts with `release=null`, `charge=null` and empty product tags/effects. These placeholders intentionally fail the production source schema until a maintainer supplies verified CN facts.
+
+Coverage gaps are informational. Missing source candidates do not block publication of already gated servants.
 
 ## Publication policy
 

@@ -72,6 +72,17 @@ test("serves the read-only data-status endpoint without caching", async () => {
       staleSourceVersions: [],
       blockers: [],
     },
+    classCoverage: [
+      {
+        className: "archer",
+        atlasCandidates: 4,
+        passedReleases: 3,
+        missingReleaseSources: 1,
+        atlasStrengthenedNps: 1,
+        evidencedReleasedNps: 1,
+        missingStrengtheningEvents: 0,
+      },
+    ],
     missingSourceCandidates: [],
     releaseSources: [],
     strengtheningSources: [],

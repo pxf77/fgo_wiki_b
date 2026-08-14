@@ -2,13 +2,14 @@
 
 ## 定位
 
-`apps/admin` 是内部只读数据状态界面，用于把 Worker 生成的事实源、门禁报告和当前 Snapshot 投影成可检查的状态视图。
+`apps/admin` 是内部只读数据状态界面，用于把 Worker 生成的事实源、门禁报告、职介覆盖率和当前 Snapshot 投影成可检查的状态视图。
 
 它不是审批系统，不保存“通过/不通过”结果，也不是新的事实 Owner。GitHub Pull Request 是本项目唯一的人工审核入口。
 
 当前展示：
 
 - Atlas 规范化数量、跳过项和警告数量。
+- 各职介 Atlas 候选、实装来源与强化事件覆盖率。
 - 尚未补充国服实装来源的 Atlas 候选。
 - `data/cn-release-evidence.json` 中的实装来源及门禁状态。
 - `data/cn-strengthening-evidence.json` 中的强化事件及应用状态。
@@ -18,16 +19,18 @@
 ## 数据链
 
 ```text
-Worker reports + source manifests + current Snapshot
-                       ↓
+Worker reports + class catalog + source manifests + current Snapshot
+                              ↓
 apps/api/src/data-status-repository.ts
-                       ↓
+                              ↓
 GET /api/internal/data-status
-                       ↓
+                              ↓
 apps/admin
 ```
 
 页面刷新时重新读取文件和当前 Snapshot，不维护第二套状态。
+
+职介覆盖率来自 `data/reports/cn-class-catalog.json`。它用于规划数据扩展，不参与发布阻断判断；缺来源候选数量较大时，已经通过事实门禁的从者仍可正常发布。
 
 ## 数据发布状态
 
@@ -90,6 +93,6 @@ API:         http://localhost:3001
 ./data:/workspace/data:ro
 ```
 
-因此 API 可以读取规范化报告、两份门禁报告、两份事实源清单和当前 Snapshot。
+因此 API 可以读取规范化报告、职介目录、两份门禁报告、两份事实源清单和当前 Snapshot。
 
 状态台静态产物可以部署到独立内部 COS 路径或 CVM 静态目录。`/api/internal/*` 不应通过公共 API 域名直接开放，至少需要企业 VPN、来源 IP 白名单或独立内部网关。

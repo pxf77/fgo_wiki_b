@@ -13,13 +13,14 @@ test("loads data-status files relative to the repository root", () => {
     config.strengtheningSourcePath,
     /data[\\/]cn-strengthening-evidence/,
   );
+  assert.match(config.classCatalogReportPath, /cn-class-catalog/);
 });
 
 test("projects prepared worker reports into a ready data-status dashboard", async () => {
   const snapshot = structuredClone(bootstrapSnapshot);
   snapshot.metadata.sourceStatus = "reviewed";
   snapshot.metadata.sourceVersions = {
-    releaseEvidence: "2026-08-13-r1",
+    releaseEvidence: "2026-08-14-r2",
     strengtheningEvidence: "2026-08-13-strengthening-r1",
   };
 
@@ -35,6 +36,17 @@ test("projects prepared worker reports into a ready data-status dashboard", asyn
   assert.equal(dashboard.counts.passedReleases, 3);
   assert.equal(dashboard.counts.missingSourceCandidates, 1);
   assert.equal(dashboard.counts.strengtheningEvents, 1);
+  assert.deepEqual(dashboard.classCoverage, [
+    {
+      className: "archer",
+      atlasCandidates: 4,
+      passedReleases: 3,
+      missingReleaseSources: 1,
+      atlasStrengthenedNps: 1,
+      evidencedReleasedNps: 1,
+      missingStrengtheningEvents: 0,
+    },
+  ]);
   assert.ok(
     dashboard.releaseSources.every((entry) => entry.gateStatus === "passed"),
   );

@@ -12,7 +12,16 @@ const candidates: AtlasServantCandidate[] = [
     originalName: "プトレマイオス",
     className: "archer",
     rarity: 5,
-    noblePhantasms: [],
+    noblePhantasms: [
+      {
+        sourceId: 1039401,
+        name: "月は知らず、久遠の光",
+        color: "buster",
+        scope: "single",
+        strengthened: false,
+        hitCount: 3,
+      },
+    ],
   },
   {
     atlasId: 399999,
@@ -53,10 +62,12 @@ const manifest: CnReleaseEvidenceManifest = {
         noblePhantasms: [
           {
             id: "ptolemy-buster-single",
+            atlasSourceId: 1039401,
             name: "月は知らず、久遠の光",
             color: "buster",
             scope: "single",
             strengthened: false,
+            hitCount: 3,
             effects: ["无视防御"],
           },
         ],
@@ -72,6 +83,7 @@ test("publishes only servants with CN release source entries", () => {
     ["archer-ptolemy"],
   );
   assert.equal(servants[0]?.release.status, "released");
+  assert.equal(servants[0]?.noblePhantasms[0]?.atlasSourceId, 1039401);
   assert.equal(servants[0]?.noblePhantasms[0]?.strengthened, false);
   assert.deepEqual(servants[0]?.strengthenings, []);
   assert.equal(report.passed.length, 1);
@@ -99,11 +111,11 @@ test("rejects a pre-marked strengthening state at the release boundary", () => {
   );
 });
 
-test("requires a path-safe release source version", () => {
+test("rejects a curated NP without a matching Atlas source identity", () => {
   const invalid = structuredClone(manifest);
-  invalid.version = "../test-r2";
+  invalid.entries[0]!.overrides.noblePhantasms[0]!.atlasSourceId = 999999;
   assert.throws(
     () => applyCnReleaseGate(candidates, invalid),
-    /path-safe version token/,
+    /references unknown Atlas NP/,
   );
 });

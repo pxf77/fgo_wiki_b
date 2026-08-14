@@ -48,6 +48,16 @@ export interface DataRankingSummary {
   entryCount: number;
 }
 
+export interface DataClassCoverage {
+  className: ServantClass;
+  atlasCandidates: number;
+  passedReleases: number;
+  missingReleaseSources: number;
+  atlasStrengthenedNps: number;
+  evidencedReleasedNps: number;
+  missingStrengtheningEvents: number;
+}
+
 export interface DataPublicationSummary {
   status: DataPublicationStatus;
   datasetVersion: string;
@@ -75,6 +85,7 @@ export interface DataStatusDashboard {
     warningCount: number;
   };
   publication: DataPublicationSummary;
+  classCoverage: DataClassCoverage[];
   missingSourceCandidates: DataMissingSourceCandidate[];
   releaseSources: DataReleaseSource[];
   strengtheningSources: DataStrengtheningSource[];

@@ -1,12 +1,11 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
-import {
-  assertSourceVersionToken,
-  type NoblePhantasm,
-  type OfficialSource,
-  type Servant,
-  type ServantCharge,
-  type ServantClass,
+import type {
+  NoblePhantasm,
+  OfficialSource,
+  Servant,
+  ServantCharge,
+  ServantClass,
 } from "@fgo-wiki/domain";
 import {
   asRecord,
@@ -90,6 +89,10 @@ const servantRoles = new Set(["main_dps", "sub_dps", "support", "plug_in", "sust
 function assertNoblePhantasm(value: unknown, context: string): asserts value is NoblePhantasm {
   const record = asRecord(value, context);
   requireString(record, "id", context);
+  const atlasSourceId = requireNumber(record, "atlasSourceId", context);
+  if (!Number.isInteger(atlasSourceId) || atlasSourceId <= 0) {
+    throw new TypeError(`${context}.atlasSourceId must be a positive integer`);
+  }
   requireString(record, "name", context);
   const color = requireString(record, "color", context);
   const scope = requireString(record, "scope", context);
@@ -184,8 +187,7 @@ export function assertCnReleaseEvidenceManifest(
   if (record.schemaVersion !== 1 || record.region !== "CN") {
     throw new TypeError("CN release evidence schemaVersion or region is invalid");
   }
-  const version = requireString(record, "version", "CN release evidence");
-  assertSourceVersionToken(version, "CN release evidence.version");
+  requireString(record, "version", "CN release evidence");
   const reviewedAt = requireString(record, "reviewedAt", "CN release evidence");
   requireDate(reviewedAt, "CN release evidence.reviewedAt");
   if (!Array.isArray(record.entries)) {
@@ -210,6 +212,51 @@ function cloneNoblePhantasm(noblePhantasm: NoblePhantasm): NoblePhantasm {
       ? { targetTraits: [...noblePhantasm.targetTraits] }
       : {}),
   };
+}
+
+function assertAtlasNoblePhantasmMappings(
+  entry: CnReleaseEvidenceEntry,
+  candidate: AtlasServantCandidate,
+): void {
+  const atlasNps = new Map(
+    candidate.noblePhantasms.map((np) => [np.sourceId, np] as const),
+  );
+  const mappedSourceIds = new Set<number>();
+
+  for (const noblePhantasm of entry.overrides.noblePhantasms) {
+    const sourceId = noblePhantasm.atlasSourceId;
+    if (sourceId === undefined) {
+      throw new Error(`${entry.servantId} NP ${noblePhantasm.id} has no Atlas source mapping`);
+    }
+    if (mappedSourceIds.has(sourceId)) {
+      throw new Error(`${entry.servantId} maps Atlas NP ${sourceId} more than once`);
+    }
+    mappedSourceIds.add(sourceId);
+
+    const atlasNp = atlasNps.get(sourceId);
+    if (!atlasNp) {
+      throw new Error(
+        `${entry.servantId} NP ${noblePhantasm.id} references unknown Atlas NP ${sourceId}`,
+      );
+    }
+    if (
+      atlasNp.color !== noblePhantasm.color ||
+      atlasNp.scope !== noblePhantasm.scope
+    ) {
+      throw new Error(
+        `${entry.servantId} NP ${noblePhantasm.id} does not match Atlas card/scope`,
+      );
+    }
+    if (
+      atlasNp.hitCount !== undefined &&
+      noblePhantasm.hitCount !== undefined &&
+      atlasNp.hitCount !== noblePhantasm.hitCount
+    ) {
+      throw new Error(
+        `${entry.servantId} NP ${noblePhantasm.id} does not match Atlas hit count`,
+      );
+    }
+  }
 }
 
 export function applyCnReleaseGate(
@@ -251,6 +298,7 @@ export function applyCnReleaseGate(
         `Atlas identity mismatch for ${entry.servantId}: expected ${entry.expected.className}/${entry.expected.rarity}, got ${candidate.className}/${candidate.rarity}`,
       );
     }
+    assertAtlasNoblePhantasmMappings(entry, candidate);
 
     servants.push({
       id: entry.servantId,

@@ -140,6 +140,48 @@ export function App() {
         </article>
       </section>
 
+      <section className="panel">
+        <header>
+          <div>
+            <p className="eyebrow">业务数据扩展</p>
+            <h2>职介覆盖率</h2>
+          </div>
+        </header>
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>职介</th>
+                <th>Atlas 候选</th>
+                <th>实装来源</th>
+                <th>实装缺口</th>
+                <th>Atlas 已强化宝具</th>
+                <th>强化证据</th>
+                <th>强化缺口</th>
+              </tr>
+            </thead>
+            <tbody>
+              {dashboard.classCoverage.map((coverage) => (
+                <tr key={coverage.className}>
+                  <td>{coverage.className}</td>
+                  <td>{coverage.atlasCandidates}</td>
+                  <td>
+                    {coverage.passedReleases}/{coverage.atlasCandidates}
+                  </td>
+                  <td>{coverage.missingReleaseSources}</td>
+                  <td>{coverage.atlasStrengthenedNps}</td>
+                  <td>
+                    {coverage.evidencedReleasedNps}/
+                    {coverage.atlasStrengthenedNps}
+                  </td>
+                  <td>{coverage.missingStrengtheningEvents}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
       <section className="panel publication">
         <header>
           <div>

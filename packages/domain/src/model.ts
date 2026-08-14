@@ -45,6 +45,7 @@ export interface RegionRelease {
 
 export interface NoblePhantasm {
   id: string;
+  atlasSourceId?: number;
   name: string;
   color: CardColor;
   scope: NoblePhantasmScope;

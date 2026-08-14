@@ -5,7 +5,7 @@
 - **Web/PWA**：Next.js 静态导出，适合 COS + CDN、搜索引擎和分享链接。
 - **Android/iOS**：React + Vite + Capacitor，内置离线数据并支持后续原生能力。
 - **API**：Fastify，提供动态查询、用户数据和只读数据状态接口。
-- **Worker**：摄取 Atlas CN 数据、执行国服实装/强化证据门禁、编译 Git 管理榜单并发布不可变快照。
+- **Worker**：摄取 Atlas CN 数据、执行国服实装/强化证据门禁、生成职介覆盖目录、编译 Git 管理榜单并发布不可变快照。
 - **PostgreSQL**：保存标准化从者版本、榜单快照和用户数据。
 
 当前提交包含一个可运行的 **弓阶垂直切片**，用于验证职介、宝具类型、宝具色卡、自充、强化状态、模式榜单以及 `Atlas -> 国服证据门禁 -> 快照` 数据链。
@@ -17,7 +17,7 @@ apps/
   web/        Next.js Web/PWA
   mobile/     Capacitor 移动端壳
   api/        Fastify API
-  worker/     数据同步、规范化、证据门禁与快照编译
+  worker/     数据同步、规范化、证据门禁、职介目录与快照编译
   admin/      只读数据状态台
 packages/
   domain/         领域模型、版本合同与启动数据
@@ -59,6 +59,7 @@ pnpm dev:api
 3. 强化状态只能由独立国服强化事件证据派生。
 4. 最终快照会记录实装证据和强化证据的版本。
 5. 事实源版本变化会生成新的不可变数据集目录。
+6. 职介目录会输出覆盖率、缺来源候选和待补强化事件。
 
 生产候选链为：
 
@@ -68,7 +69,14 @@ pnpm data:prepare
 pnpm snapshot:build
 ```
 
+已有候选与门禁报告时，可以单独刷新职介目录：
+
+```bash
+pnpm data:catalog
+```
+
 详细事实归属和门禁规则见 [`docs/data-pipeline.md`](docs/data-pipeline.md)。
+职介批量扩展说明见 [`docs/class-catalog.md`](docs/class-catalog.md)。
 只读状态台说明见 [`docs/data-status-dashboard.md`](docs/data-status-dashboard.md)。
 
 启动 PostgreSQL 与 API：
@@ -118,13 +126,31 @@ Atlas CN export
 关键约束：
 
 - Atlas 中出现记录不代表国服已经实装。
-- `collectionNo` 是跨来源主身份；名称不是第二套身份系统。
+- `collectionNo` 是跨来源从者主身份；名称不是第二套身份系统。
+- 每个产品宝具通过 `atlasSourceId` 稳定映射到 Atlas NP，不按名称猜测。
 - 国服实装事实由 `data/cn-release-evidence.json` 单点拥有。
 - 技能/宝具强化事实由 `data/cn-strengthening-evidence.json` 单点拥有。
 - 实装与强化门禁共用一套国服发布来源校验器。
 - 实装覆盖项必须保持 `NoblePhantasm.strengthened=false`；只有强化门禁可派生 `true`。
 - 候选缺实装证据时进入 blocked report，不进入快照。
 - 榜单 Tier 通过 GitHub Pull Request 人工审核，AI 不得直接发布。
+
+## 职介覆盖目录
+
+Worker 会生成：
+
+```text
+data/reports/cn-class-catalog.json
+```
+
+它提供：
+
+- 每个职介的 Atlas 候选、实装来源和强化证据覆盖率。
+- 尚未补实装来源的候选与不完整 JSON 模板。
+- Atlas 已标记强化、但国服强化事件仍待核验的宝具列表。
+- 产品 NP ID 与 Atlas NP ID 的稳定映射。
+
+该文件只是派生工作队列，不是事实 Owner，也不会自动扩大生产发布范围。
 
 ## 快照可追溯性
 
@@ -154,10 +180,10 @@ data/generated/latest.json
 <ranking-date>-r<ranking-revision>--rel-<release-source-version>--str-<strengthening-source-version>
 ```
 
-当前数据会生成类似：
+当前 Fixture 数据会生成类似：
 
 ```text
-2026-08-13-r1--rel-2026-08-13-r1--str-2026-08-13-strengthening-r1
+2026-08-13-r1--rel-2026-08-14-r2--str-2026-08-13-strengthening-r1
 ```
 
 Bootstrap 数据使用：
@@ -186,8 +212,6 @@ Pull Request CI 会直接比较 base 与 head 中的 JSON 内容：
 pnpm version:check -- --base <base-sha> --head <head-sha>
 ```
 
-当前首次架构 PR 的 base 中尚不存在这些事实源，因此允许作为初始化基线；后续 PR 会执行完整升版约束。
-
 ## 当前完成范围
 
 - 国服数据合同与版本化快照模型
@@ -198,10 +222,12 @@ pnpm version:check -- --base <base-sha> --head <head-sha>
 - Atlas CN 原始数据摄取与最小契约解析
 - Atlas 职介、稀有度、宝具色卡、目标范围和 Hit 数规范化
 - 基于 `collectionNo` 的国服官方实装证据门禁
+- 基于 `atlasSourceId` 的产品宝具与 Atlas NP 映射门禁
 - 基于 `servantId + targetId` 的国服强化事件门禁
 - 统一的国服发布来源校验边界
 - 宝具强化状态派生与技能/宝具强化时间线
 - 实装门禁 passed/blocked 与强化 applied 报告
+- 职介覆盖率、缺来源模板与待补强化事件目录
 - 快照元数据与发布描述中的证据版本追踪
 - 榜单版本与事实源版本共同决定的不可变数据集路径
 - PR 显式来源版本与榜单 revision 门禁
@@ -211,4 +237,4 @@ pnpm version:check -- --base <base-sha> --head <head-sha>
 - Docker Compose、TCR/CVM、COS/CDN 发布脚本
 - CI：依赖锁定、显式版本检查、类型检查、测试、构建、Fixture 数据链与快照产物
 
-下一阶段应扩展全职介实装/强化来源覆盖，并继续完善技能效果结构化模型和真实腾讯云部署验证。
+下一阶段应基于职介目录逐批补齐弓阶国服实装来源和强化事件，再扩展到其他职介；完整技能效果结构化模型和真实腾讯云部署验证仍待后续实施。

@@ -14,7 +14,10 @@ import {
   requireString,
   requireStringArray,
 } from "./json-validation.js";
-import type { AtlasServantCandidate } from "./normalize-atlas.js";
+import type {
+  AtlasNoblePhantasmCandidate,
+  AtlasServantCandidate,
+} from "./normalize-atlas.js";
 import { assertOfficialSource } from "./official-evidence.js";
 
 export interface CnReleaseEvidenceEntry {
@@ -44,6 +47,7 @@ export interface CnReleaseEvidenceManifest {
   version: string;
   region: "CN";
   reviewedAt: string;
+  autoPublishClasses?: ServantClass[];
   entries: CnReleaseEvidenceEntry[];
 }
 
@@ -55,7 +59,8 @@ export interface CnReleaseGateReport {
     servantId: string;
     atlasId: number;
     status: "released" | "announced";
-    evidenceUrl: string;
+    source?: "atlas_cn" | "curated";
+    evidenceUrl?: string;
   }>;
   blocked: Array<{
     collectionNo: number;
@@ -96,15 +101,11 @@ function assertNoblePhantasm(value: unknown, context: string): asserts value is 
   requireString(record, "name", context);
   const color = requireString(record, "color", context);
   const scope = requireString(record, "scope", context);
-  if (!cardColors.has(color)) {
-    throw new TypeError(`${context}.color is invalid`);
-  }
-  if (!noblePhantasmScopes.has(scope)) {
-    throw new TypeError(`${context}.scope is invalid`);
-  }
+  if (!cardColors.has(color)) throw new TypeError(`${context}.color is invalid`);
+  if (!noblePhantasmScopes.has(scope)) throw new TypeError(`${context}.scope is invalid`);
   if (record.strengthened !== false) {
     throw new TypeError(
-      `${context}.strengthened must be false before the CN strengthening gate`,
+      `${context}.strengthened must be false before the CN strengthening gate for curated release overrides`,
     );
   }
   requireStringArray(record, "effects", context);
@@ -190,6 +191,16 @@ export function assertCnReleaseEvidenceManifest(
   requireString(record, "version", "CN release evidence");
   const reviewedAt = requireString(record, "reviewedAt", "CN release evidence");
   requireDate(reviewedAt, "CN release evidence.reviewedAt");
+  if (record.autoPublishClasses !== undefined) {
+    if (
+      !Array.isArray(record.autoPublishClasses) ||
+      record.autoPublishClasses.some(
+        (entry) => typeof entry !== "string" || !servantClasses.has(entry as ServantClass),
+      )
+    ) {
+      throw new TypeError("CN release evidence.autoPublishClasses is invalid");
+    }
+  }
   if (!Array.isArray(record.entries)) {
     throw new TypeError("CN release evidence.entries must be an array");
   }
@@ -204,12 +215,22 @@ function uniqueStrings(values: readonly (string | undefined)[]): string[] {
   ];
 }
 
-function cloneNoblePhantasm(noblePhantasm: NoblePhantasm): NoblePhantasm {
+function mergedCuratedNoblePhantasm(
+  noblePhantasm: NoblePhantasm,
+  atlasNp: AtlasNoblePhantasmCandidate,
+): NoblePhantasm {
   return {
     ...noblePhantasm,
+    strengthened: noblePhantasm.strengthened,
     effects: [...noblePhantasm.effects],
     ...(noblePhantasm.targetTraits
       ? { targetTraits: [...noblePhantasm.targetTraits] }
+      : {}),
+    ...(atlasNp.damageMultipliers
+      ? { damageMultipliers: [...atlasNp.damageMultipliers] }
+      : {}),
+    ...(atlasNp.specialAttackMultiplier
+      ? { specialAttackMultiplier: atlasNp.specialAttackMultiplier }
       : {}),
   };
 }
@@ -217,10 +238,8 @@ function cloneNoblePhantasm(noblePhantasm: NoblePhantasm): NoblePhantasm {
 function assertAtlasNoblePhantasmMappings(
   entry: CnReleaseEvidenceEntry,
   candidate: AtlasServantCandidate,
-): void {
-  const atlasNps = new Map(
-    candidate.noblePhantasms.map((np) => [np.sourceId, np] as const),
-  );
+): Map<number, AtlasNoblePhantasmCandidate> {
+  const atlasNps = new Map(candidate.noblePhantasms.map((np) => [np.sourceId, np] as const));
   const mappedSourceIds = new Set<number>();
 
   for (const noblePhantasm of entry.overrides.noblePhantasms) {
@@ -239,10 +258,7 @@ function assertAtlasNoblePhantasmMappings(
         `${entry.servantId} NP ${noblePhantasm.id} references unknown Atlas NP ${sourceId}`,
       );
     }
-    if (
-      atlasNp.color !== noblePhantasm.color ||
-      atlasNp.scope !== noblePhantasm.scope
-    ) {
+    if (atlasNp.color !== noblePhantasm.color || atlasNp.scope !== noblePhantasm.scope) {
       throw new Error(
         `${entry.servantId} NP ${noblePhantasm.id} does not match Atlas card/scope`,
       );
@@ -252,11 +268,74 @@ function assertAtlasNoblePhantasmMappings(
       noblePhantasm.hitCount !== undefined &&
       atlasNp.hitCount !== noblePhantasm.hitCount
     ) {
-      throw new Error(
-        `${entry.servantId} NP ${noblePhantasm.id} does not match Atlas hit count`,
-      );
+      throw new Error(`${entry.servantId} NP ${noblePhantasm.id} does not match Atlas hit count`);
     }
   }
+  return atlasNps;
+}
+
+function derivedTags(candidate: AtlasServantCandidate): string[] {
+  const tags: string[] = [];
+  const charge = candidate.charge ?? { self: 0, team: 0 };
+  for (const np of candidate.noblePhantasms) {
+    tags.push(np.scope === "single" ? "单体宝具" : np.scope === "aoe" ? "全体宝具" : "辅助宝具");
+    tags.push(np.color === "quick" ? "Quick" : np.color === "arts" ? "Arts" : "Buster");
+    if (np.strengthened) tags.push("已强化宝具");
+    if ((np.specialAttackMultiplier ?? 1) > 1) tags.push("条件特攻");
+  }
+  if (charge.self > 0) tags.push(`${charge.self}自充`);
+  if (charge.team > 0) tags.push("群充");
+  if ((charge.target ?? 0) > 0) tags.push("单体充能");
+  return uniqueStrings(tags);
+}
+
+function autoNoblePhantasm(
+  candidate: AtlasServantCandidate,
+  np: AtlasNoblePhantasmCandidate,
+  index: number,
+): NoblePhantasm {
+  return {
+    id: `${candidate.className}-c${candidate.collectionNo}-np-${index + 1}`,
+    atlasSourceId: np.sourceId,
+    name: np.name,
+    color: np.color,
+    scope: np.scope,
+    strengthened: np.strengthened,
+    effects: (np.specialAttackMultiplier ?? 1) > 1 ? ["条件特攻"] : [],
+    ...(np.hitCount !== undefined ? { hitCount: np.hitCount } : {}),
+    ...(np.damageMultipliers ? { damageMultipliers: [...np.damageMultipliers] } : {}),
+    ...(np.specialAttackMultiplier
+      ? { specialAttackMultiplier: np.specialAttackMultiplier }
+      : {}),
+  };
+}
+
+function autoServant(candidate: AtlasServantCandidate, reviewedAt: string): Servant {
+  const hasAttackNp = candidate.noblePhantasms.some(
+    (np) => np.scope === "single" || np.scope === "aoe" || np.scope === "special",
+  );
+  return {
+    id: `${candidate.className}-c${candidate.collectionNo}`,
+    atlasId: candidate.atlasId,
+    name: candidate.name,
+    aliases: uniqueStrings([candidate.originalName]).filter((name) => name !== candidate.name),
+    className: candidate.className,
+    rarity: candidate.rarity,
+    ...(candidate.atkMax !== undefined ? { atkMax: candidate.atkMax } : {}),
+    release: {
+      region: "CN",
+      status: "released",
+      source: "atlas_cn",
+    },
+    noblePhantasms: candidate.noblePhantasms.map((np, index) =>
+      autoNoblePhantasm(candidate, np, index),
+    ),
+    strengthenings: [],
+    charge: { ...(candidate.charge ?? { self: 0, team: 0 }) },
+    tags: derivedTags(candidate),
+    role: hasAttackNp ? ["main_dps"] : ["support"],
+    updatedAt: reviewedAt.slice(0, 10),
+  };
 }
 
 export function applyCnReleaseGate(
@@ -268,9 +347,6 @@ export function applyCnReleaseGate(
   const candidatesByCollectionNo = new Map(
     candidates.map((candidate) => [candidate.collectionNo, candidate] as const),
   );
-  const collectionNoByServantId = new Map(
-    manifest.entries.map((entry) => [entry.servantId, entry.collectionNo] as const),
-  );
   const evidenceCollectionNumbers = new Set<number>();
   const servantIds = new Set<string>();
   const servants: Servant[] = [];
@@ -280,9 +356,7 @@ export function applyCnReleaseGate(
     if (evidenceCollectionNumbers.has(entry.collectionNo)) {
       throw new Error(`Duplicate CN release evidence for collectionNo ${entry.collectionNo}`);
     }
-    if (servantIds.has(entry.servantId)) {
-      throw new Error(`Duplicate CN servantId ${entry.servantId}`);
-    }
+    if (servantIds.has(entry.servantId)) throw new Error(`Duplicate CN servantId ${entry.servantId}`);
     evidenceCollectionNumbers.add(entry.collectionNo);
     servantIds.add(entry.servantId);
 
@@ -298,7 +372,7 @@ export function applyCnReleaseGate(
         `Atlas identity mismatch for ${entry.servantId}: expected ${entry.expected.className}/${entry.expected.rarity}, got ${candidate.className}/${candidate.rarity}`,
       );
     }
-    assertAtlasNoblePhantasmMappings(entry, candidate);
+    const atlasNps = assertAtlasNoblePhantasmMappings(entry, candidate);
 
     servants.push({
       id: entry.servantId,
@@ -311,16 +385,21 @@ export function applyCnReleaseGate(
       ]).filter((alias) => alias !== entry.displayName),
       className: candidate.className,
       rarity: candidate.rarity,
+      ...(candidate.atkMax !== undefined ? { atkMax: candidate.atkMax } : {}),
       release: {
         region: "CN",
         status: entry.release.status,
+        source: "curated",
         releasedAt: entry.release.releasedAt,
         evidenceUrl: entry.release.evidence.url,
+        evidence: { ...entry.release.evidence },
       },
-      noblePhantasms: entry.overrides.noblePhantasms.map(cloneNoblePhantasm),
+      noblePhantasms: entry.overrides.noblePhantasms.map((np) =>
+        mergedCuratedNoblePhantasm(np, atlasNps.get(np.atlasSourceId!)!),
+      ),
       strengthenings: [],
       charge: { ...entry.overrides.charge },
-      tags: uniqueStrings(entry.overrides.tags),
+      tags: uniqueStrings([...entry.overrides.tags, ...derivedTags(candidate)]),
       role: [...entry.overrides.role],
       updatedAt: manifest.reviewedAt.slice(0, 10),
     });
@@ -329,23 +408,42 @@ export function applyCnReleaseGate(
       servantId: entry.servantId,
       atlasId: candidate.atlasId,
       status: entry.release.status,
+      source: "curated",
       evidenceUrl: entry.release.evidence.url,
     });
   }
 
-  servants.sort(
-    (left, right) =>
-      (collectionNoByServantId.get(left.id) ?? 0) -
-      (collectionNoByServantId.get(right.id) ?? 0),
-  );
+  const autoPublishClasses = new Set(manifest.autoPublishClasses ?? []);
+  for (const candidate of candidates) {
+    if (
+      evidenceCollectionNumbers.has(candidate.collectionNo) ||
+      !autoPublishClasses.has(candidate.className)
+    ) {
+      continue;
+    }
+    const servant = autoServant(candidate, manifest.reviewedAt);
+    if (servantIds.has(servant.id)) throw new Error(`Duplicate auto CN servantId ${servant.id}`);
+    servantIds.add(servant.id);
+    servants.push(servant);
+    passed.push({
+      collectionNo: candidate.collectionNo,
+      servantId: servant.id,
+      atlasId: candidate.atlasId,
+      status: "released",
+      source: "atlas_cn",
+    });
+  }
 
+  servants.sort((left, right) => (left.atlasId ?? 0) - (right.atlasId ?? 0));
+
+  const passedCollectionNumbers = new Set(passed.map((entry) => entry.collectionNo));
   const blocked = candidates
-    .filter((candidate) => !evidenceCollectionNumbers.has(candidate.collectionNo))
+    .filter((candidate) => !passedCollectionNumbers.has(candidate.collectionNo))
     .map((candidate) => ({
       collectionNo: candidate.collectionNo,
       atlasId: candidate.atlasId,
       name: candidate.name,
-      reason: "no CN release source entry",
+      reason: "class is not auto-published and has no curated CN release source",
     }));
 
   return {

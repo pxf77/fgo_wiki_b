@@ -22,6 +22,7 @@ export type CatalogReleaseStatus = "passed" | "missing_source";
 export type CatalogStrengtheningStatus =
   | "not_strengthened"
   | "evidenced"
+  | "atlas_current"
   | "missing_event"
   | "unassessed";
 
@@ -106,14 +107,10 @@ export interface CnClassCatalogReport {
 function releaseEntryByCollectionNo(
   manifest: CnReleaseEvidenceManifest,
 ): Map<number, CnReleaseEvidenceEntry> {
-  return new Map(
-    manifest.entries.map((entry) => [entry.collectionNo, entry] as const),
-  );
+  return new Map(manifest.entries.map((entry) => [entry.collectionNo, entry] as const));
 }
 
-function releasedNpEventKeys(
-  manifest: CnStrengtheningSourceManifest,
-): Set<string> {
+function releasedNpEventKeys(manifest: CnStrengtheningSourceManifest): Set<string> {
   return new Set(
     manifest.events.flatMap((event) =>
       event.status === "released" && event.target.type === "noble_phantasm"
@@ -130,10 +127,7 @@ function createReleaseDraft(
     collectionNo: candidate.collectionNo,
     displayName: candidate.name,
     aliases: [],
-    expected: {
-      className: candidate.className,
-      rarity: candidate.rarity,
-    },
+    expected: { className: candidate.className, rarity: candidate.rarity },
     release: null,
     overrides: {
       charge: null,
@@ -162,109 +156,80 @@ export function buildCnClassCatalog(
   generatedAt = new Date().toISOString(),
 ): CnClassCatalogReport {
   const releaseEntries = releaseEntryByCollectionNo(releaseSource);
-  const passedServants = new Set(
-    releaseGate.passed.map((entry) => entry.servantId),
+  const passedByCollectionNo = new Map(
+    releaseGate.passed.map((entry) => [entry.collectionNo, entry] as const),
   );
   const releasedEvents = releasedNpEventKeys(strengtheningSource);
   const missingStrengtheningEvents: CnMissingStrengtheningCandidate[] = [];
 
   const catalogCandidates = candidates.map<CnClassCatalogCandidate>((candidate) => {
     const releaseEntry = releaseEntries.get(candidate.collectionNo);
-    const releasePassed =
-      releaseEntry !== undefined && passedServants.has(releaseEntry.servantId);
+    const passed = passedByCollectionNo.get(candidate.collectionNo);
+    const releasePassed = passed !== undefined;
     const curatedByAtlasSourceId = new Map(
       releaseEntry?.overrides.noblePhantasms.flatMap((np) =>
-        np.atlasSourceId === undefined
-          ? []
-          : [[np.atlasSourceId, np] as const],
+        np.atlasSourceId === undefined ? [] : [[np.atlasSourceId, np] as const],
       ) ?? [],
     );
 
-    const noblePhantasms = candidate.noblePhantasms.map<CnClassCatalogNoblePhantasm>(
-      (np) => {
-        const curated = curatedByAtlasSourceId.get(np.sourceId);
-        let strengtheningStatus: CatalogStrengtheningStatus = "not_strengthened";
-
-        if (np.strengthened) {
-          if (
-            releaseEntry === undefined ||
-            !passedServants.has(releaseEntry.servantId) ||
-            curated === undefined
-          ) {
-            strengtheningStatus = "unassessed";
-          } else if (releasedEvents.has(`${releaseEntry.servantId}:${curated.id}`)) {
-            strengtheningStatus = "evidenced";
-          } else {
-            strengtheningStatus = "missing_event";
-            missingStrengtheningEvents.push({
-              className: candidate.className,
-              collectionNo: candidate.collectionNo,
-              servantId: releaseEntry.servantId,
-              atlasSourceId: np.sourceId,
-              targetId: curated.id,
-              name: np.name,
-              color: np.color,
-              scope: np.scope,
-            });
-          }
+    const noblePhantasms = candidate.noblePhantasms.map<CnClassCatalogNoblePhantasm>((np) => {
+      const curated = curatedByAtlasSourceId.get(np.sourceId);
+      let strengtheningStatus: CatalogStrengtheningStatus = "not_strengthened";
+      if (np.strengthened) {
+        if (!releasePassed) {
+          strengtheningStatus = "unassessed";
+        } else if (
+          curated &&
+          passed &&
+          releasedEvents.has(`${passed.servantId}:${curated.id}`)
+        ) {
+          strengtheningStatus = "evidenced";
+        } else {
+          strengtheningStatus = "atlas_current";
         }
-
-        return {
-          atlasSourceId: np.sourceId,
-          name: np.name,
-          color: np.color,
-          scope: np.scope,
-          atlasStrengthened: np.strengthened,
-          ...(np.hitCount !== undefined ? { hitCount: np.hitCount } : {}),
-          ...(curated ? { targetId: curated.id } : {}),
-          strengtheningStatus,
-        };
-      },
-    );
+      }
+      return {
+        atlasSourceId: np.sourceId,
+        name: np.name,
+        color: np.color,
+        scope: np.scope,
+        atlasStrengthened: np.strengthened,
+        ...(np.hitCount !== undefined ? { hitCount: np.hitCount } : {}),
+        ...(curated ? { targetId: curated.id } : {}),
+        strengtheningStatus,
+      };
+    });
 
     return {
       atlasId: candidate.atlasId,
       collectionNo: candidate.collectionNo,
       name: candidate.name,
-      ...(candidate.originalName
-        ? { originalName: candidate.originalName }
-        : {}),
+      ...(candidate.originalName ? { originalName: candidate.originalName } : {}),
       className: candidate.className,
       rarity: candidate.rarity,
       releaseStatus: releasePassed ? "passed" : "missing_source",
-      ...(releasePassed && releaseEntry
-        ? { servantId: releaseEntry.servantId }
+      ...(releasePassed && passed
+        ? { servantId: passed.servantId }
         : { releaseSourceDraft: createReleaseDraft(candidate) }),
       noblePhantasms,
     };
   });
 
   const classes = servantClasses.flatMap((className) => {
-    const classCandidates = catalogCandidates.filter(
-      (candidate) => candidate.className === className,
-    );
+    const classCandidates = catalogCandidates.filter((candidate) => candidate.className === className);
     if (classCandidates.length === 0) return [];
-
-    const passedCandidates = classCandidates.filter(
-      (candidate) => candidate.releaseStatus === "passed",
-    );
-    const assessedNps = passedCandidates.flatMap(
-      (candidate) => candidate.noblePhantasms,
-    );
-    const atlasStrengthenedNps = assessedNps.filter(
-      (np) => np.atlasStrengthened,
-    );
-
+    const passedCandidates = classCandidates.filter((candidate) => candidate.releaseStatus === "passed");
+    const assessedNps = passedCandidates.flatMap((candidate) => candidate.noblePhantasms);
+    const atlasStrengthenedNps = assessedNps.filter((np) => np.atlasStrengthened);
     return [
       {
         className,
         atlasCandidates: classCandidates.length,
         passedReleases: passedCandidates.length,
-        missingReleaseSources:
-          classCandidates.length - passedCandidates.length,
+        missingReleaseSources: classCandidates.length - passedCandidates.length,
         atlasStrengthenedNps: atlasStrengthenedNps.length,
         evidencedReleasedNps: atlasStrengthenedNps.filter(
-          (np) => np.strengtheningStatus === "evidenced",
+          (np) => np.strengtheningStatus === "evidenced" || np.strengtheningStatus === "atlas_current",
         ).length,
         missingStrengtheningEvents: atlasStrengthenedNps.filter(
           (np) => np.strengtheningStatus === "missing_event",
@@ -305,18 +270,12 @@ export async function writeCnClassCatalogFile(
   outputPath: string,
 ): Promise<CnClassCatalogReport> {
   const candidateValue: unknown = JSON.parse(await readFile(candidatePath, "utf8"));
-  if (!Array.isArray(candidateValue)) {
-    throw new TypeError("Atlas normalized candidates must be an array");
-  }
+  if (!Array.isArray(candidateValue)) throw new TypeError("Atlas normalized candidates must be an array");
 
-  const releaseSourceValue: unknown = JSON.parse(
-    await readFile(releaseSourcePath, "utf8"),
-  );
+  const releaseSourceValue: unknown = JSON.parse(await readFile(releaseSourcePath, "utf8"));
   assertCnReleaseEvidenceManifest(releaseSourceValue);
 
-  const releaseGateValue: unknown = JSON.parse(
-    await readFile(releaseGateReportPath, "utf8"),
-  );
+  const releaseGateValue: unknown = JSON.parse(await readFile(releaseGateReportPath, "utf8"));
   assertReleaseGateReport(releaseGateValue);
 
   const strengtheningSourceValue: unknown = JSON.parse(

@@ -25,9 +25,10 @@ export type RankingMode =
   | "farming_90pp"
   | "high_difficulty"
   | "support"
-  | "np1_value";
+  | "np1_value"
+  | "np5_value";
 export type Tier = "EX" | "T0" | "T0.5" | "T1" | "T1.5" | "T2" | "T3";
-export type Confidence = "high" | "medium" | "provisional";
+export type Confidence = "high" | "medium" | "provisional" | "computed";
 
 export interface OfficialSource {
   title: string;
@@ -39,8 +40,10 @@ export interface OfficialSource {
 export interface RegionRelease {
   region: "CN";
   status: ReleaseStatus;
+  source?: "atlas_cn" | "curated";
   releasedAt?: string;
   evidenceUrl?: string;
+  evidence?: OfficialSource;
 }
 
 export interface NoblePhantasm {
@@ -53,6 +56,8 @@ export interface NoblePhantasm {
   hitCount?: number;
   targetTraits?: string[];
   effects: string[];
+  damageMultipliers?: number[];
+  specialAttackMultiplier?: number;
 }
 
 export type StrengtheningStatus = "released" | "announced";
@@ -92,6 +97,7 @@ export interface Servant {
   aliases: string[];
   className: ServantClass;
   rarity: 1 | 2 | 3 | 4 | 5;
+  atkMax?: number;
   release: RegionRelease;
   noblePhantasms: NoblePhantasm[];
   strengthenings?: StrengtheningEvent[];
@@ -136,6 +142,7 @@ export interface RankingSnapshot {
   mode: RankingMode;
   asOf: string;
   revision: number;
+  origin?: "editorial" | "computed" | "mixed";
   assumptions: RankingAssumptions;
   entries: RankingEntry[];
 }

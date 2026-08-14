@@ -9,10 +9,7 @@ import {
 test("loads data-status files relative to the repository root", () => {
   const config = loadDataStatusFileConfig({});
   assert.match(config.releaseSourcePath, /data[\\/]cn-release-evidence/);
-  assert.match(
-    config.strengtheningSourcePath,
-    /data[\\/]cn-strengthening-evidence/,
-  );
+  assert.match(config.strengtheningSourcePath, /data[\\/]cn-strengthening-evidence/);
   assert.match(config.classCatalogReportPath, /cn-class-catalog/);
 });
 
@@ -20,7 +17,7 @@ test("projects prepared worker reports into a ready data-status dashboard", asyn
   const snapshot = structuredClone(bootstrapSnapshot);
   snapshot.metadata.sourceStatus = "reviewed";
   snapshot.metadata.sourceVersions = {
-    releaseEvidence: "2026-08-14-r4",
+    releaseEvidence: "2026-08-14-r5",
     strengtheningEvidence: "2026-08-13-strengthening-r1",
   };
 
@@ -32,28 +29,24 @@ test("projects prepared worker reports into a ready data-status dashboard", asyn
 
   assert.equal(dashboard.publication.status, "ready");
   assert.deepEqual(dashboard.publication.staleSourceVersions, []);
-  assert.equal(dashboard.counts.atlasCandidates, 6);
-  assert.equal(dashboard.counts.passedReleases, 5);
-  assert.equal(dashboard.counts.missingSourceCandidates, 1);
+  assert.equal(dashboard.counts.atlasCandidates, 50);
+  assert.equal(dashboard.counts.passedReleases, 50);
+  assert.equal(dashboard.counts.missingSourceCandidates, 0);
   assert.equal(dashboard.counts.strengtheningEvents, 1);
   assert.deepEqual(dashboard.classCoverage, [
     {
       className: "archer",
-      atlasCandidates: 6,
-      passedReleases: 5,
-      missingReleaseSources: 1,
-      atlasStrengthenedNps: 1,
-      evidencedReleasedNps: 1,
+      atlasCandidates: 50,
+      passedReleases: 50,
+      missingReleaseSources: 0,
+      atlasStrengthenedNps: 22,
+      evidencedReleasedNps: 22,
       missingStrengtheningEvents: 0,
     },
   ]);
+  assert.ok(dashboard.releaseSources.every((entry) => entry.gateStatus === "passed"));
   assert.ok(
-    dashboard.releaseSources.every((entry) => entry.gateStatus === "passed"),
-  );
-  assert.ok(
-    dashboard.strengtheningSources.every(
-      (entry) => entry.gateStatus === "applied",
-    ),
+    dashboard.strengtheningSources.every((entry) => entry.gateStatus === "applied"),
   );
 });
 

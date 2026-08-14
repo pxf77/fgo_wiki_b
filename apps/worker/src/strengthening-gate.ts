@@ -29,11 +29,15 @@ function cloneServant(servant: Servant): Servant {
   return {
     ...servant,
     aliases: [...servant.aliases],
-    release: { ...servant.release },
+    release: {
+      ...servant.release,
+      ...(servant.release.evidence ? { evidence: { ...servant.release.evidence } } : {}),
+    },
     noblePhantasms: servant.noblePhantasms.map((np) => ({
       ...np,
       effects: [...np.effects],
       ...(np.targetTraits ? { targetTraits: [...np.targetTraits] } : {}),
+      ...(np.damageMultipliers ? { damageMultipliers: [...np.damageMultipliers] } : {}),
     })),
     strengthenings: [],
     charge: { ...servant.charge },
@@ -68,8 +72,11 @@ export function applyCnStrengtheningGate(
     if ((servant.strengthenings ?? []).length > 0) {
       throw new Error(`Release-gated servant ${servant.id} already has a strengthening timeline`);
     }
-    if (servant.noblePhantasms.some((np) => np.strengthened)) {
-      throw new Error(`Release-gated servant ${servant.id} premarks a strengthened NP`);
+    if (
+      servant.release.source !== "atlas_cn" &&
+      servant.noblePhantasms.some((np) => np.strengthened)
+    ) {
+      throw new Error(`Curated release servant ${servant.id} premarks a strengthened NP`);
     }
   }
 
@@ -80,9 +87,7 @@ export function applyCnStrengtheningGate(
   const reviewedAt = Date.parse(manifest.reviewedAt);
 
   for (const entry of manifest.events) {
-    if (eventIds.has(entry.id)) {
-      throw new Error(`Duplicate CN strengthening event ${entry.id}`);
-    }
+    if (eventIds.has(entry.id)) throw new Error(`Duplicate CN strengthening event ${entry.id}`);
     eventIds.add(entry.id);
 
     const servant = servantsById.get(entry.servantId);

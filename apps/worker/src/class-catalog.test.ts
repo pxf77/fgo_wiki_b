@@ -194,7 +194,7 @@ const strengtheningSource: CnStrengtheningSourceManifest = {
   ],
 };
 
-test("builds class coverage and fact-entry drafts from Atlas candidates", () => {
+test("builds class coverage and distinguishes dated evidence from Atlas current state", () => {
   const report = buildCnClassCatalog(
     candidates,
     releaseSource,
@@ -210,10 +210,12 @@ test("builds class coverage and fact-entry drafts from Atlas candidates", () => 
       passedReleases: 2,
       missingReleaseSources: 1,
       atlasStrengthenedNps: 2,
-      evidencedReleasedNps: 1,
-      missingStrengtheningEvents: 1,
+      evidencedReleasedNps: 2,
+      missingStrengtheningEvents: 0,
     },
   ]);
+  assert.equal(report.candidates[0]?.noblePhantasms[0]?.strengtheningStatus, "evidenced");
+  assert.equal(report.candidates[1]?.noblePhantasms[0]?.strengtheningStatus, "atlas_current");
   assert.equal(report.candidates[2]?.releaseStatus, "missing_source");
   assert.deepEqual(
     report.candidates[2]?.releaseSourceDraft?.overrides.noblePhantasms[0],
@@ -228,16 +230,5 @@ test("builds class coverage and fact-entry drafts from Atlas candidates", () => 
       strengthened: false,
     },
   );
-  assert.deepEqual(report.missingStrengtheningEvents, [
-    {
-      className: "archer",
-      collectionNo: 394,
-      servantId: "archer-ptolemy",
-      atlasSourceId: 1039401,
-      targetId: "ptolemy-buster-single",
-      name: "月は知らず、久遠の光",
-      color: "buster",
-      scope: "single",
-    },
-  ]);
+  assert.deepEqual(report.missingStrengtheningEvents, []);
 });

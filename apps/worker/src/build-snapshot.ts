@@ -13,6 +13,7 @@ import {
   type RankingSnapshot,
   type Servant,
 } from "@fgo-wiki/domain";
+import { buildCompleteRankings } from "./computed-rankings.js";
 import { asRecord, requireString } from "./json-validation.js";
 import { rankingSourceFiles } from "./ranking-source.js";
 
@@ -70,18 +71,11 @@ async function loadServants(options: BuildSnapshotOptions): Promise<{
   );
   try {
     const value: unknown = await readJson(reviewedPath);
-    if (!Array.isArray(value)) {
-      throw new TypeError("Reviewed CN servants must be an array");
-    }
-    return {
-      servants: value as Servant[],
-      sourceStatus: "reviewed",
-    };
+    if (!Array.isArray(value)) throw new TypeError("Reviewed CN servants must be an array");
+    return { servants: value as Servant[], sourceStatus: "reviewed" };
   } catch (error) {
     const code = (error as NodeJS.ErrnoException).code;
-    if (code !== "ENOENT") {
-      throw error;
-    }
+    if (code !== "ENOENT") throw error;
     const allowBootstrapData =
       options.allowBootstrapData ?? process.env.ALLOW_BOOTSTRAP_DATA === "true";
     if (!allowBootstrapData) {
@@ -89,19 +83,12 @@ async function loadServants(options: BuildSnapshotOptions): Promise<{
         `Reviewed CN servants not found at ${reviewedPath}. Run pnpm data:prepare:fixture for local verification or pnpm data:prepare after syncing Atlas.`,
       );
     }
-    return {
-      servants: bootstrapServants,
-      sourceStatus: "bootstrap",
-    };
+    return { servants: bootstrapServants, sourceStatus: "bootstrap" };
   }
 }
 
 function readEvidenceVersion(value: unknown, context: string): string {
-  const version = requireString(
-    asRecord(value, context),
-    "evidenceVersion",
-    context,
-  );
+  const version = requireString(asRecord(value, context), "evidenceVersion", context);
   assertSourceVersionToken(version, `${context}.evidenceVersion`);
   return version;
 }
@@ -110,10 +97,7 @@ async function loadSourceVersions(
   sourceStatus: DatasetSnapshot["metadata"]["sourceStatus"],
   options: BuildSnapshotOptions,
 ): Promise<DatasetSourceVersions | undefined> {
-  if (sourceStatus === "bootstrap") {
-    return undefined;
-  }
-
+  if (sourceStatus === "bootstrap") return undefined;
   const releaseGateReportPath = configuredPath(
     options.releaseGateReportPath,
     process.env.CN_RELEASE_GATE_REPORT_PATH,
@@ -128,7 +112,6 @@ async function loadSourceVersions(
     readJson<unknown>(releaseGateReportPath),
     readJson<unknown>(strengtheningGateReportPath),
   ]);
-
   return {
     releaseEvidence: readEvidenceVersion(releaseReport, "CN release gate report"),
     strengtheningEvidence: readEvidenceVersion(
@@ -152,6 +135,69 @@ function validateRankingReferences(
   }
 }
 
+function subsetSnapshot(snapshot: DatasetSnapshot, servantIds: Set<string>): DatasetSnapshot {
+  return {
+    metadata: { ...snapshot.metadata, ...(snapshot.metadata.sourceVersions ? { sourceVersions: { ...snapshot.metadata.sourceVersions } } : {}) },
+    servants: snapshot.servants.filter((servant) => servantIds.has(servant.id)),
+    rankings: snapshot.rankings.map((ranking) => ({
+      ...ranking,
+      assumptions: { ...ranking.assumptions },
+      entries: ranking.entries.filter((entry) => servantIds.has(entry.servantId)),
+    })),
+    changelog: [...snapshot.changelog],
+  };
+}
+
+function catalogDocument(snapshot: DatasetSnapshot) {
+  return {
+    metadata: snapshot.metadata,
+    servants: snapshot.servants.map((servant) => ({
+      id: servant.id,
+      name: servant.name,
+      className: servant.className,
+      rarity: servant.rarity,
+      releaseStatus: servant.release.status,
+      source: servant.release.source ?? "curated",
+      charge: servant.charge,
+      noblePhantasms: servant.noblePhantasms.map((np) => ({
+        id: np.id,
+        name: np.name,
+        color: np.color,
+        scope: np.scope,
+        strengthened: np.strengthened,
+      })),
+    })),
+  };
+}
+
+async function writeSnapshotDocuments(root: string, snapshot: DatasetSnapshot): Promise<void> {
+  await writeJson(join(root, "metadata.json"), snapshot.metadata);
+  await writeJson(join(root, "servants.json"), snapshot.servants);
+  await writeJson(join(root, "snapshot.json"), snapshot);
+  await writeJson(join(root, "catalog.json"), catalogDocument(snapshot));
+
+  for (const ranking of snapshot.rankings) {
+    await writeJson(join(root, "rankings", `${ranking.mode}.json`), ranking);
+  }
+
+  const classes = new Set(snapshot.servants.map((servant) => servant.className));
+  for (const className of classes) {
+    const ids = new Set(
+      snapshot.servants
+        .filter((servant) => servant.className === className)
+        .map((servant) => servant.id),
+    );
+    await writeJson(join(root, "classes", `${className}.json`), subsetSnapshot(snapshot, ids));
+  }
+
+  for (const servant of snapshot.servants) {
+    await writeJson(
+      join(root, "servants", `${servant.id}.json`),
+      subsetSnapshot(snapshot, new Set([servant.id])),
+    );
+  }
+}
+
 export async function buildSnapshot(options: BuildSnapshotOptions = {}): Promise<string> {
   const rankingRoot = configuredPath(
     options.rankingRoot,
@@ -165,13 +211,19 @@ export async function buildSnapshot(options: BuildSnapshotOptions = {}): Promise
   );
   const pointer = await readJson<LatestRankingPointer>(join(rankingRoot, "latest.json"));
   const rankingDirectory = join(rankingRoot, pointer.directory);
-  const rankings = await Promise.all(
+  const editorialRankings = await Promise.all(
     rankingSourceFiles.map((file) =>
       readJson<RankingSnapshot>(join(rankingDirectory, file)),
     ),
   );
   const { servants, sourceStatus } = await loadServants(options);
   const sourceVersions = await loadSourceVersions(sourceStatus, options);
+  const rankings = buildCompleteRankings(
+    servants,
+    editorialRankings,
+    pointer.asOf,
+    pointer.revision,
+  );
 
   validateRankingReferences(rankings, servants);
   const datasetVersion = createDatasetVersion({
@@ -197,22 +249,16 @@ export async function buildSnapshot(options: BuildSnapshotOptions = {}): Promise
     changelog: [
       `发布国服数据快照 ${datasetVersion}。`,
       sourceStatus === "reviewed"
-        ? "从者实装状态已通过版本化国服官方证据门禁。"
+        ? "Atlas CN 当前区域事实与人工覆盖项已合并。"
         : "当前快照使用开发用 Bootstrap 数据。",
-      sourceStatus === "reviewed"
-        ? "技能与宝具强化时间线已通过独立国服强化事件证据门禁。"
-        : "Bootstrap 数据包含开发用强化时间线。",
+      "输出首页目录、职介分片与从者详情分片；完整 Snapshot 保留用于 API 兼容。",
+      "90++/高难榜以规则评分补齐未人工评级从者，NP1/NP5 数据榜全部由确定性数据生成。",
     ],
   };
   assertDatasetSnapshot(snapshot);
 
   const versionDirectory = join(outputRoot, datasetVersion);
-  await writeJson(join(versionDirectory, "metadata.json"), snapshot.metadata);
-  await writeJson(join(versionDirectory, "servants.json"), snapshot.servants);
-  await writeJson(join(versionDirectory, "snapshot.json"), snapshot);
-  for (const ranking of rankings) {
-    await writeJson(join(versionDirectory, "rankings", `${ranking.mode}.json`), ranking);
-  }
+  await writeSnapshotDocuments(versionDirectory, snapshot);
 
   const publicBaseUrl = (
     options.publicBaseUrl ??
@@ -229,7 +275,7 @@ export async function buildSnapshot(options: BuildSnapshotOptions = {}): Promise
   };
   await writeJson(join(versionDirectory, "release.json"), releaseDescriptor);
   await writeJson(join(outputRoot, "latest.json"), releaseDescriptor);
-  await writeJson(join(outputRoot, "latest", "snapshot.json"), snapshot);
+  await writeSnapshotDocuments(join(outputRoot, "latest"), snapshot);
 
   return versionDirectory;
 }

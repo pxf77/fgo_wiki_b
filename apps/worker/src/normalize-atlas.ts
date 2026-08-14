@@ -4,12 +4,14 @@ import type {
   CardColor,
   NoblePhantasmScope,
   Servant,
+  ServantCharge,
   ServantClass,
 } from "@fgo-wiki/domain";
 import {
   parseAtlasNiceServants,
   type AtlasNiceFunction,
   type AtlasNiceNoblePhantasm,
+  type AtlasNiceSkill,
 } from "./atlas-schema.js";
 
 export interface AtlasNoblePhantasmCandidate {
@@ -19,6 +21,8 @@ export interface AtlasNoblePhantasmCandidate {
   scope: NoblePhantasmScope;
   strengthened: boolean;
   hitCount?: number;
+  damageMultipliers?: number[];
+  specialAttackMultiplier?: number;
 }
 
 export interface AtlasServantCandidate {
@@ -28,6 +32,8 @@ export interface AtlasServantCandidate {
   originalName?: string;
   className: ServantClass;
   rarity: Servant["rarity"];
+  atkMax?: number;
+  charge?: ServantCharge;
   noblePhantasms: AtlasNoblePhantasmCandidate[];
 }
 
@@ -78,9 +84,7 @@ function normalizeClassName(value: string): ServantClass | undefined {
 }
 
 function normalizeRarity(value: number): Servant["rarity"] | undefined {
-  if (!Number.isInteger(value) || value < 1 || value > 5) {
-    return undefined;
-  }
+  if (!Number.isInteger(value) || value < 1 || value > 5) return undefined;
   return value as Servant["rarity"];
 }
 
@@ -99,14 +103,10 @@ function isDamageFunction(func: AtlasNiceFunction): boolean {
 
 function inferNoblePhantasmScope(functions: readonly AtlasNiceFunction[]): NoblePhantasmScope {
   const damageFunctions = functions.filter(isDamageFunction);
-  if (damageFunctions.length === 0) {
-    return "support";
-  }
+  if (damageFunctions.length === 0) return "support";
 
   const targets = damageFunctions.map((func) => normalizedToken(func.funcTargetType));
-  if (targets.some((target) => target.includes("all"))) {
-    return "aoe";
-  }
+  if (targets.some((target) => target.includes("all"))) return "aoe";
   if (
     targets.some(
       (target) =>
@@ -123,6 +123,31 @@ function inferNoblePhantasmScope(functions: readonly AtlasNiceFunction[]): Noble
 
 function atlasStatusIsStrengthened(strengthStatus: number): boolean {
   return strengthStatus !== 0 && strengthStatus !== 1;
+}
+
+function damageFacts(functions: readonly AtlasNiceFunction[]): {
+  damageMultipliers?: number[];
+  specialAttackMultiplier?: number;
+} {
+  const damageFunction = functions.find(isDamageFunction);
+  if (!damageFunction) return {};
+
+  const multipliers = damageFunction.svals
+    .map((value) => value.Value)
+    .filter((value): value is number => typeof value === "number" && value > 0)
+    .map((value) => value / 10);
+  const specialAttackMultiplier = Math.max(
+    1,
+    ...damageFunction.svals
+      .map((value) => value.Correction)
+      .filter((value): value is number => typeof value === "number" && value > 1000)
+      .map((value) => value / 1000),
+  );
+
+  return {
+    ...(multipliers.length ? { damageMultipliers: multipliers } : {}),
+    ...(specialAttackMultiplier > 1 ? { specialAttackMultiplier } : {}),
+  };
 }
 
 function normalizeNoblePhantasm(
@@ -148,6 +173,7 @@ function normalizeNoblePhantasm(
     color,
     scope,
     strengthened: atlasStatusIsStrengthened(noblePhantasm.strengthStatus),
+    ...damageFacts(noblePhantasm.functions),
   };
   if (noblePhantasm.npDistribution.length > 0) {
     candidate.hitCount = noblePhantasm.npDistribution.length;
@@ -170,8 +196,7 @@ function currentNoblePhantasms(
   warnings: AtlasNormalizationIssue[],
 ): AtlasNoblePhantasmCandidate[] {
   const ordinaryVariants = servant.noblePhantasms.filter(
-    (noblePhantasm) =>
-      noblePhantasm.priority > 0 && noblePhantasm.priority < 190,
+    (noblePhantasm) => noblePhantasm.priority > 0 && noblePhantasm.priority < 190,
   );
   const positivePriorityVariants = servant.noblePhantasms.filter(
     (noblePhantasm) => noblePhantasm.priority > 0,
@@ -206,6 +231,58 @@ function currentNoblePhantasms(
         left.candidate.sourceId - right.candidate.sourceId,
     )
     .map((entry) => entry.candidate);
+}
+
+function currentSkills(skills: readonly AtlasNiceSkill[]): AtlasNiceSkill[] {
+  const current = new Map<number, AtlasNiceSkill>();
+  for (const skill of skills) {
+    const existing = current.get(skill.num);
+    if (
+      !existing ||
+      skill.priority > existing.priority ||
+      (skill.priority === existing.priority && skill.id > existing.id)
+    ) {
+      current.set(skill.num, skill);
+    }
+  }
+  return [...current.values()].sort((left, right) => left.num - right.num);
+}
+
+function maxNpGain(functions: readonly AtlasNiceFunction[]): number {
+  return Math.max(
+    0,
+    ...functions
+      .filter((func) => normalizedToken(func.funcType) === "gainnp")
+      .flatMap((func) => func.svals)
+      .map((value) => value.Value)
+      .filter((value): value is number => typeof value === "number" && value > 0)
+      .map((value) => value / 100),
+  );
+}
+
+function deriveCharge(skills: readonly AtlasNiceSkill[]): ServantCharge {
+  let self = 0;
+  let team = 0;
+  let target = 0;
+
+  for (const skill of currentSkills(skills)) {
+    for (const func of skill.functions) {
+      if (normalizedToken(func.funcType) !== "gainnp") continue;
+      const amount = maxNpGain([func]);
+      const targetType = normalizedToken(func.funcTargetType);
+      if (targetType === "self") self += amount;
+      else if (targetType.includes("all")) team += amount;
+      else if (targetType.includes("one") || targetType.includes("individual")) {
+        target += amount;
+      }
+    }
+  }
+
+  return {
+    self,
+    team,
+    ...(target > 0 ? { target } : {}),
+  };
 }
 
 export function normalizeAtlasPayload(value: unknown): {
@@ -246,11 +323,11 @@ export function normalizeAtlasPayload(value: unknown): {
       name: servant.name,
       className,
       rarity,
+      charge: deriveCharge(servant.skills),
       noblePhantasms: currentNoblePhantasms(servant, warnings),
     };
-    if (servant.originalName !== undefined) {
-      candidate.originalName = servant.originalName;
-    }
+    if (servant.originalName !== undefined) candidate.originalName = servant.originalName;
+    if (servant.atkMax !== undefined) candidate.atkMax = servant.atkMax;
     candidates.push(candidate);
   }
 

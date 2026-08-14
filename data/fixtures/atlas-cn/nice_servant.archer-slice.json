@@ -15,20 +15,8 @@
         "card": "3",
         "name": "痛幻哭奏",
         "strengthStatus": 1,
-        "npDistribution": [
-          40,
-          90,
-          140,
-          190,
-          230,
-          310
-        ],
-        "functions": [
-          {
-            "funcType": "damageNp",
-            "funcTargetType": "enemy"
-          }
-        ]
+        "npDistribution": [40, 90, 140, 190, 230, 310],
+        "functions": [{"funcType": "damageNp", "funcTargetType": "enemy"}]
       },
       {
         "id": 204302,
@@ -38,20 +26,50 @@
         "card": "3",
         "name": "痛幻哭奏",
         "strengthStatus": 99,
-        "npDistribution": [
-          40,
-          90,
-          140,
-          190,
-          230,
-          310
-        ],
-        "functions": [
-          {
-            "funcType": "damageNpIndividualSum",
-            "funcTargetType": "enemy"
-          }
-        ]
+        "npDistribution": [40, 90, 140, 190, 230, 310],
+        "functions": [{"funcType": "damageNpIndividualSum", "funcTargetType": "enemy"}]
+      }
+    ]
+  },
+  {
+    "id": 204600,
+    "collectionNo": 350,
+    "name": "源为朝",
+    "originalName": "源為朝",
+    "className": "archer",
+    "rarity": 5,
+    "noblePhantasms": [
+      {
+        "id": 204601,
+        "num": 1,
+        "npNum": 1,
+        "priority": 101,
+        "card": "2",
+        "name": "轰沉·弓张月",
+        "strengthStatus": 0,
+        "npDistribution": [10, 20, 30, 40],
+        "functions": [{"funcType": "damageNpIndividual", "funcTargetType": "enemyAll"}]
+      }
+    ]
+  },
+  {
+    "id": 204800,
+    "collectionNo": 383,
+    "name": "杜尔伽",
+    "originalName": "ドゥルガー",
+    "className": "archer",
+    "rarity": 5,
+    "noblePhantasms": [
+      {
+        "id": 204801,
+        "num": 1,
+        "npNum": 1,
+        "priority": 101,
+        "card": "1",
+        "name": "愤怒啊，愿望啊，戮尽诸魔的女神啊",
+        "strengthStatus": 0,
+        "npDistribution": [2, 5, 8, 11, 13, 16, 19, 26],
+        "functions": [{"funcType": "damageNpIndividual", "funcTargetType": "enemyAll"}]
       }
     ]
   },
@@ -71,19 +89,8 @@
         "card": "2",
         "name": "月所未知，久远之光",
         "strengthStatus": 0,
-        "npDistribution": [
-          60,
-          130,
-          200,
-          260,
-          350
-        ],
-        "functions": [
-          {
-            "funcType": "damageNp",
-            "funcTargetType": "enemy"
-          }
-        ]
+        "npDistribution": [60, 130, 200, 260, 350],
+        "functions": [{"funcType": "damageNp", "funcTargetType": "enemy"}]
       },
       {
         "id": 205002,
@@ -93,19 +100,8 @@
         "card": "1",
         "name": "王之书库",
         "strengthStatus": 0,
-        "npDistribution": [
-          60,
-          130,
-          200,
-          260,
-          350
-        ],
-        "functions": [
-          {
-            "funcType": "damageNp",
-            "funcTargetType": "enemyAll"
-          }
-        ]
+        "npDistribution": [60, 130, 200, 260, 350],
+        "functions": [{"funcType": "damageNp", "funcTargetType": "enemyAll"}]
       }
     ]
   },
@@ -125,19 +121,8 @@
         "card": "1",
         "name": "？？？",
         "strengthStatus": 0,
-        "npDistribution": [
-          100,
-          200,
-          300,
-          400,
-          500
-        ],
-        "functions": [
-          {
-            "funcType": "damageNp",
-            "funcTargetType": "enemy"
-          }
-        ]
+        "npDistribution": [100, 200, 300, 400, 500],
+        "functions": [{"funcType": "damageNp", "funcTargetType": "enemy"}]
       },
       {
         "id": 205302,
@@ -147,19 +132,8 @@
         "card": "1",
         "name": "过甚神秘的心脏",
         "strengthStatus": 0,
-        "npDistribution": [
-          100,
-          200,
-          300,
-          400,
-          500
-        ],
-        "functions": [
-          {
-            "funcType": "damageNp",
-            "funcTargetType": "enemy"
-          }
-        ]
+        "npDistribution": [100, 200, 300, 400, 500],
+        "functions": [{"funcType": "damageNp", "funcTargetType": "enemy"}]
       }
     ]
   },
@@ -179,15 +153,8 @@
         "card": "2",
         "name": "测试宝具",
         "strengthStatus": 0,
-        "npDistribution": [
-          100
-        ],
-        "functions": [
-          {
-            "funcType": "damageNp",
-            "funcTargetType": "enemyAll"
-          }
-        ]
+        "npDistribution": [100],
+        "functions": [{"funcType": "damageNp", "funcTargetType": "enemyAll"}]
       }
     ]
   }

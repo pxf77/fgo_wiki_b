@@ -5,10 +5,10 @@
 - **Web/PWA**：Next.js 静态导出，面向 COS + CDN/EdgeOne、搜索引擎和分享链接。
 - **Android/iOS**：React + Vite + Capacitor，内置离线快照并支持后续原生能力。
 - **API**：Fastify，提供从者、榜单、快照及内部只读数据状态接口。
-- **Worker**：摄取 Atlas CN 数据，执行实装/强化事实门禁，生成职介覆盖目录并编译不可变快照。
+- **Worker**：摄取 Atlas CN 数据，执行国服实装/强化事实门禁，生成职介覆盖目录并编译不可变快照。
 - **PostgreSQL**：保存标准化从者版本、榜单快照和用户数据。
 
-当前仓库以弓阶垂直切片验证了完整链路：
+当前仓库以弓阶垂直切片验证完整链路：
 
 ```text
 Atlas CN export
@@ -63,17 +63,6 @@ pnpm dev:web
 pnpm dev:api
 ```
 
-Fixture 数据链验证：
-
-1. 未取得国服实装来源的候选不会进入发布数据。
-2. 产品宝具必须通过 `atlasSourceId` 映射到对应 Atlas NP。
-3. 实装来源只能提供宝具基础状态 `strengthened=false`。
-4. 强化状态只能由独立国服强化事件派生。
-5. 快照会记录实装来源与强化来源版本。
-6. 事实源版本变化会生成新的不可变数据集目录。
-7. Atlas 数值卡色 `1/2/3` 会规范化为 `Arts/Buster/Quick`。
-8. 同一宝具的多个上游版本会选择当前常规优先级版本，并排除战斗内占位记录。
-
 生产候选链：
 
 ```bash
@@ -123,28 +112,31 @@ pnpm data:catalog
 3. 同组选择最高 `priority`；同优先级选择较大的 Atlas NP ID。
 4. 仅当没有常规记录时，才回退到其他正优先级或全部记录。
 
-该规则保留托勒密、梅柳齐娜等真实双宝具，同时排除 `priority=199` 一类战斗内占位记录。
+该规则保留真实双宝具，并排除 `priority=199` 一类战斗内占位记录。
 
 ## 真实上游校验基线
 
-2026-08-14 的 Atlas CN live 校验结果：
+2026-08-14 的 Atlas CN live 候选基线：
 
 ```text
 Atlas input records:           454
 Accepted playable candidates:  438
 Archer candidates:              50
-Archer passed release gate:      3
-Archer missing release source:  47
-Archer NP strengthening evidence: 1 / 1
 ```
 
-当前正式发布的弓阶事实仍仅包含：
+当前国服事实源已覆盖 5 名 Archer：
 
-- 妖精骑士崔斯坦（芭万·希）
-- 托勒密
-- 图坦卡蒙
+| collectionNo | 从者 | 宝具形态 |
+|---:|---|---|
+| 311 | 妖精骑士崔斯坦（芭万·希） | Quick 单体 |
+| 350 | 源为朝 | Buster 全体 |
+| 383 | 杜尔伽 | Arts 全体 |
+| 394 | 托勒密 | Buster 单体 / Arts 全体 |
+| 427 | 图坦卡蒙 | Arts 单体 |
 
-其余 47 名 Archer 保持为职介目录中的缺来源候选，不会因 Atlas 中存在而自动发布。
+其余 45 名 Archer 继续作为缺来源候选，不会因 Atlas 中存在而自动发布。
+
+本批新增的源为朝与杜尔伽均使用国服官方从者介绍作为实装来源，并通过 live Atlas NP ID、色卡、范围和 Hit 数门禁。
 
 ## 职介覆盖目录
 
@@ -174,7 +166,7 @@ data/reports/cn-class-catalog.json
 当前事实源生成：
 
 ```text
-2026-08-13-r1--rel-2026-08-14-r3--str-2026-08-13-strengthening-r1
+2026-08-13-r1--rel-2026-08-14-r4--str-2026-08-13-strengthening-r1
 ```
 
 Bootstrap 数据使用：
@@ -233,4 +225,4 @@ PostgreSQL          -> TencentDB for PostgreSQL（同 VPC 内网）
 - PostgreSQL/Drizzle、Docker Compose 与腾讯云发布骨架
 - 冻结依赖、类型检查、测试、生产构建和 Snapshot Artifact CI
 
-下一阶段应按职介目录分批补齐 Archer 的国服实装来源和强化事件，再扩展至其他职介；完整技能效果结构化与真实腾讯云线上部署仍待后续实施。
+下一阶段继续按职介目录分批补齐 Archer 的国服实装来源和强化事件，再扩展至其他职介；完整技能效果结构化与真实腾讯云线上部署仍待后续实施。

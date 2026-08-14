@@ -20,7 +20,7 @@ test("projects prepared worker reports into a ready data-status dashboard", asyn
   const snapshot = structuredClone(bootstrapSnapshot);
   snapshot.metadata.sourceStatus = "reviewed";
   snapshot.metadata.sourceVersions = {
-    releaseEvidence: "2026-08-14-r3",
+    releaseEvidence: "2026-08-14-r4",
     strengtheningEvidence: "2026-08-13-strengthening-r1",
   };
 
@@ -32,15 +32,15 @@ test("projects prepared worker reports into a ready data-status dashboard", asyn
 
   assert.equal(dashboard.publication.status, "ready");
   assert.deepEqual(dashboard.publication.staleSourceVersions, []);
-  assert.equal(dashboard.counts.atlasCandidates, 4);
-  assert.equal(dashboard.counts.passedReleases, 3);
+  assert.equal(dashboard.counts.atlasCandidates, 6);
+  assert.equal(dashboard.counts.passedReleases, 5);
   assert.equal(dashboard.counts.missingSourceCandidates, 1);
   assert.equal(dashboard.counts.strengtheningEvents, 1);
   assert.deepEqual(dashboard.classCoverage, [
     {
       className: "archer",
-      atlasCandidates: 4,
-      passedReleases: 3,
+      atlasCandidates: 6,
+      passedReleases: 5,
       missingReleaseSources: 1,
       atlasStrengthenedNps: 1,
       evidencedReleasedNps: 1,

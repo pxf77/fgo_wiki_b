@@ -40,9 +40,19 @@ A released strengthening event must target a release-gated servant and valid NP/
 
 ## Publication policy
 
-A reviewed snapshot must derive `metadata.sourceVersions` from the release-gate and strengthening-gate reports. Do not manually repeat evidence versions in ranking files, environment variables or another manifest.
+A source-backed snapshot must derive `metadata.sourceVersions` from the release-gate and strengthening-gate reports. Do not manually repeat source versions in ranking files, environment variables or another manifest.
 
-The version-scoped `release.json` and short-cache `latest.json` must carry the same source status and evidence versions as the snapshot metadata. Publish immutable version objects before replacing `latest.json`.
+Dataset path identity must include both ranking identity and source identity:
+
+```text
+<ranking-date>-r<ranking-revision>--rel-<release-source-version>--str-<strengthening-source-version>
+```
+
+Bootstrap output uses `<ranking-date>-r<ranking-revision>--bootstrap`.
+
+Source manifest versions must be path-safe tokens and must be incremented whenever their source content changes. Do not replace this explicit version contract with content hashes, SHA fingerprints or another hidden identity system.
+
+The version-scoped `release.json` and short-cache `latest.json` must carry the same source status and source versions as the snapshot metadata. Publish immutable version objects before replacing `latest.json`, and never overwrite an existing version directory with different source versions.
 
 ## Human review boundary
 

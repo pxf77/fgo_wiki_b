@@ -98,3 +98,12 @@ test("rejects a pre-marked strengthening state at the release boundary", () => {
     /must be false before the CN strengthening gate/,
   );
 });
+
+test("requires a path-safe release source version", () => {
+  const invalid = structuredClone(manifest);
+  invalid.version = "../test-r2";
+  assert.throws(
+    () => applyCnReleaseGate(candidates, invalid),
+    /path-safe version token/,
+  );
+});

@@ -112,3 +112,12 @@ test("rejects strengthening state before the dedicated gate", () => {
     /premarks a strengthened NP/,
   );
 });
+
+test("requires a path-safe strengthening source version", () => {
+  const invalid = structuredClone(manifest);
+  invalid.version = "strengthening/next";
+  assert.throws(
+    () => applyCnStrengtheningGate(servants, invalid),
+    /path-safe version token/,
+  );
+});

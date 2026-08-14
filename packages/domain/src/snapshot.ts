@@ -1,4 +1,8 @@
 import type { DatasetSnapshot } from "./model.js";
+import {
+  assertDatasetVersion,
+  assertSourceVersionToken,
+} from "./versioning.js";
 
 function asRecord(value: unknown, context: string): Record<string, unknown> {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
@@ -7,19 +11,13 @@ function asRecord(value: unknown, context: string): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
-function assertNonEmptyString(value: unknown, context: string): void {
-  if (typeof value !== "string" || value.length === 0) {
-    throw new TypeError(`${context} must be a non-empty string`);
-  }
-}
-
 function assertSourceVersions(value: unknown): void {
   const sourceVersions = asRecord(value, "Dataset snapshot metadata.sourceVersions");
-  assertNonEmptyString(
+  assertSourceVersionToken(
     sourceVersions.releaseEvidence,
     "Dataset snapshot metadata.sourceVersions.releaseEvidence",
   );
-  assertNonEmptyString(
+  assertSourceVersionToken(
     sourceVersions.strengtheningEvidence,
     "Dataset snapshot metadata.sourceVersions.strengtheningEvidence",
   );
@@ -42,7 +40,7 @@ export function assertDatasetSnapshot(value: unknown): asserts value is DatasetS
   if (metadata.region !== "CN") {
     throw new TypeError("Dataset snapshot metadata.region must be CN");
   }
-  assertNonEmptyString(
+  assertDatasetVersion(
     metadata.datasetVersion,
     "Dataset snapshot metadata.datasetVersion",
   );

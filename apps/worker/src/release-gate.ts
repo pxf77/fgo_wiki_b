@@ -1,11 +1,12 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
-import type {
-  NoblePhantasm,
-  OfficialSource,
-  Servant,
-  ServantCharge,
-  ServantClass,
+import {
+  assertSourceVersionToken,
+  type NoblePhantasm,
+  type OfficialSource,
+  type Servant,
+  type ServantCharge,
+  type ServantClass,
 } from "@fgo-wiki/domain";
 import {
   asRecord,
@@ -183,7 +184,8 @@ export function assertCnReleaseEvidenceManifest(
   if (record.schemaVersion !== 1 || record.region !== "CN") {
     throw new TypeError("CN release evidence schemaVersion or region is invalid");
   }
-  requireString(record, "version", "CN release evidence");
+  const version = requireString(record, "version", "CN release evidence");
+  assertSourceVersionToken(version, "CN release evidence.version");
   const reviewedAt = requireString(record, "reviewedAt", "CN release evidence");
   requireDate(reviewedAt, "CN release evidence.reviewedAt");
   if (!Array.isArray(record.entries)) {

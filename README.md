@@ -20,7 +20,7 @@ apps/
   worker/     数据同步、规范化、证据门禁与快照编译
   admin/      只读数据状态台
 packages/
-  domain/         领域模型与启动数据
+  domain/         领域模型、版本合同与启动数据
   filter-engine/  多维筛选
   ranking-engine/ 榜单读取、排序与维度评分
   damage-engine/  确定性宝具伤害估算内核
@@ -58,6 +58,7 @@ pnpm dev:api
 2. 实装覆盖项只能提供宝具基础状态 `false`，不能预标记强化完成。
 3. 强化状态只能由独立国服强化事件证据派生。
 4. 最终快照会记录实装证据和强化证据的版本。
+5. 事实源版本变化会生成新的不可变数据集目录。
 
 生产候选链为：
 
@@ -145,6 +146,28 @@ data/generated/latest.json
 
 其中 `release.json` 是版本目录内的发布描述，`latest.json` 是短缓存更新指针；腾讯云发布时必须先上传版本目录，再覆盖 `latest.json`。
 
+## 不可变数据集版本
+
+生产数据集路径由榜单版本和两份事实源版本共同决定：
+
+```text
+<ranking-date>-r<ranking-revision>--rel-<release-source-version>--str-<strengthening-source-version>
+```
+
+当前数据会生成类似：
+
+```text
+2026-08-13-r1--rel-2026-08-13-r1--str-2026-08-13-strengthening-r1
+```
+
+Bootstrap 数据使用：
+
+```text
+<ranking-date>-r<ranking-revision>--bootstrap
+```
+
+因此只修改实装来源或强化来源，也会产生新的 COS 对象前缀，不会覆盖同一榜单 revision 下的旧快照。来源清单内容发生变化时必须同步提升其显式 `version`；项目不使用内容 Hash、SHA256 或隐藏指纹作为第二套版本系统。
+
 ## 当前完成范围
 
 - 国服数据合同与版本化快照模型
@@ -160,10 +183,11 @@ data/generated/latest.json
 - 宝具强化状态派生与技能/宝具强化时间线
 - 实装门禁 passed/blocked 与强化 applied 报告
 - 快照元数据与发布描述中的证据版本追踪
+- 榜单版本与事实源版本共同决定的不可变数据集路径
 - 只读国服数据状态台与内部状态 API
 - Git 管理的榜单源文件
 - PostgreSQL/Drizzle schema
 - Docker Compose、TCR/CVM、COS/CDN 发布脚本
 - CI：依赖锁定、类型检查、测试、构建、Fixture 数据链与快照产物
 
-下一阶段应解决仅证据版本变化时的不可变数据集路径标识，再扩展全职介实装/强化来源、完整技能模型和真实腾讯云部署。
+下一阶段应扩展全职介实装/强化来源覆盖，并继续完善技能效果结构化模型和真实腾讯云部署验证。

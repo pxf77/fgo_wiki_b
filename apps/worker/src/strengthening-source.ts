@@ -1,7 +1,8 @@
-import type {
-  StrengtheningEvent,
-  StrengtheningStatus,
-  StrengtheningTarget,
+import {
+  assertSourceVersionToken,
+  type StrengtheningEvent,
+  type StrengtheningStatus,
+  type StrengtheningTarget,
 } from "@fgo-wiki/domain";
 import {
   asRecord,
@@ -75,7 +76,8 @@ export function assertCnStrengtheningSource(
   if (record.schemaVersion !== 1 || record.region !== "CN") {
     throw new TypeError("CN strengthening source schemaVersion or region is invalid");
   }
-  requireString(record, "version", "CN strengthening source");
+  const version = requireString(record, "version", "CN strengthening source");
+  assertSourceVersionToken(version, "CN strengthening source.version");
   const reviewedAt = requireString(record, "reviewedAt", "CN strengthening source");
   requireDate(reviewedAt, "CN strengthening source.reviewedAt");
   if (!Array.isArray(record.events)) {

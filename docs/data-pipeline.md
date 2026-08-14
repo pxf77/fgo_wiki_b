@@ -66,6 +66,8 @@ Release and strengthening manifests use the same `assertOfficialSource` boundary
 
 Do not copy the host set or source parser into another gate. A new source policy must be changed once in `apps/worker/src/official-evidence.ts` and covered through each consuming gate.
 
+Source manifest `version` values use the shared path-safe version contract from `packages/domain/src/versioning.ts`. Slashes, whitespace and other object-path control characters are rejected before a report or snapshot can be published.
+
 ## Release gate rules
 
 A servant is emitted from the release gate only when all conditions pass:
@@ -75,8 +77,9 @@ A servant is emitted from the release gate only when all conditions pass:
 3. Atlas class and rarity match the source expectation.
 4. The source URL uses HTTPS and an allowed CN publishing host.
 5. Each curated NP keeps the base `strengthened=false` state.
+6. The release manifest version is a path-safe version token.
 
-Candidates without a CN release source entry remain in the blocked report. They do not fail the whole job because Atlas may contain future or otherwise irrelevant records. A reviewed entry that cannot find its Atlas candidate does fail the job because that indicates stale identity data or an upstream contract change.
+Candidates without a CN release source entry remain in the blocked report. They do not fail the whole job because Atlas may contain future or otherwise irrelevant records. A source entry that cannot find its Atlas candidate does fail the job because that indicates stale identity data or an upstream contract change.
 
 The strengthening gate remains the only stage allowed to derive a released `NoblePhantasm.strengthened=true` state.
 
@@ -91,12 +94,13 @@ A strengthening event is applied only when all conditions pass:
 5. The event does not predate the servant's CN release.
 6. A `released` event is not dated after the manifest review time.
 7. The source URL uses HTTPS and an allowed CN publishing host.
+8. The strengthening manifest version is a path-safe version token.
 
 Released NP events derive `NoblePhantasm.strengthened=true`. Announced events enter the timeline but do not change the current strengthened state. Skill events are exposed in the same timeline even though a full public skill model is not yet part of the P0 domain contract.
 
 ## Snapshot publication contract
 
-A source-backed snapshot must read evidence versions from the generated gate reports, rather than copying them into another source file:
+A source-backed snapshot reads source versions from the generated gate reports, rather than copying them into another source file:
 
 ```json
 {
@@ -119,13 +123,35 @@ data/generated/latest.json
 
 `release.json` is the immutable version-scoped release descriptor. `latest.json` is the short-cache pointer and must be published only after the immutable version directory is available.
 
-A source-backed snapshot without both evidence versions fails validation. Bootstrap snapshots may omit them.
+A source-backed snapshot without both source versions fails validation. Bootstrap snapshots may omit them.
+
+## Dataset version identity
+
+A production dataset version is composed from the ranking pointer and both source versions:
+
+```text
+<ranking-date>-r<ranking-revision>--rel-<release-source-version>--str-<strengthening-source-version>
+```
+
+Example:
+
+```text
+2026-08-13-r1--rel-2026-08-13-r1--str-2026-08-13-strengthening-r1
+```
+
+Bootstrap output uses:
+
+```text
+<ranking-date>-r<ranking-revision>--bootstrap
+```
+
+This means a release-source-only or strengthening-source-only update produces a new immutable directory even when the ranking date and revision do not change. The previous directory remains addressable and `latest.json` moves to the new release descriptor.
+
+The source manifests must increment their explicit `version` whenever source content changes. This project intentionally does not derive path identity from file hashes, SHA256 values or hidden fingerprints.
 
 ## Current boundary
 
 This iteration independently gates **servant availability** and **skill/NP strengthening events**. Curated charge, tags, NP names and effect summaries remain version-controlled overrides. Exact skill effects and full NP effect functions are not yet derived from Atlas functions, and should not be described as fully automatic facts.
-
-The dataset path still uses the ranking date/revision as its external version. Evidence versions are now visible in metadata and release descriptors; changing the path identity when only evidence revisions change remains a separate release-versioning decision.
 
 ## Publication safety
 

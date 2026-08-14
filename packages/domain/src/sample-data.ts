@@ -1,4 +1,5 @@
 import type { DatasetSnapshot, RankingSnapshot, Servant } from "./model.js";
+import { createDatasetVersion } from "./versioning.js";
 
 export const bootstrapServants: Servant[] = [
   {
@@ -190,7 +191,11 @@ export const bootstrapRankings: RankingSnapshot[] = [
 export const bootstrapSnapshot: DatasetSnapshot = {
   metadata: {
     region: "CN",
-    datasetVersion: "2026-08-13-r1-bootstrap",
+    datasetVersion: createDatasetVersion({
+      rankingAsOf: "2026-08-13",
+      rankingRevision: 1,
+      sourceStatus: "bootstrap",
+    }),
     rankingRevision: 1,
     publishedAt: "2026-08-13T00:00:00.000Z",
     minimumAppVersion: "0.1.0",

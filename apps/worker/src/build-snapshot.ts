@@ -5,7 +5,9 @@ import { promisify } from "node:util";
 import { brotliCompress } from "node:zlib";
 import {
   assertDatasetSnapshot,
+  assertSourceVersionToken,
   bootstrapServants,
+  createDatasetVersion,
   type DatasetSnapshot,
   type DatasetSourceVersions,
   type RankingSnapshot,
@@ -94,7 +96,13 @@ async function loadServants(options: BuildSnapshotOptions): Promise<{
 }
 
 function readEvidenceVersion(value: unknown, context: string): string {
-  return requireString(asRecord(value, context), "evidenceVersion", context);
+  const version = requireString(
+    asRecord(value, context),
+    "evidenceVersion",
+    context,
+  );
+  assertSourceVersionToken(version, `${context}.evidenceVersion`);
+  return version;
 }
 
 async function loadSourceVersions(
@@ -164,7 +172,12 @@ export async function buildSnapshot(options: BuildSnapshotOptions = {}): Promise
   const sourceVersions = await loadSourceVersions(sourceStatus, options);
 
   validateRankingReferences(rankings, servants);
-  const datasetVersion = `${pointer.asOf}-r${pointer.revision}`;
+  const datasetVersion = createDatasetVersion({
+    rankingAsOf: pointer.asOf,
+    rankingRevision: pointer.revision,
+    sourceStatus,
+    ...(sourceVersions ? { sourceVersions } : {}),
+  });
   const publishedAt =
     options.publishedAt ?? process.env.PUBLISHED_AT ?? new Date().toISOString();
   const snapshot: DatasetSnapshot = {

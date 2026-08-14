@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "version": "2026-08-13-strengthening-r1",
+  "region": "CN",
+  "reviewedAt": "2026-08-13T00:00:00.000Z",
+  "events": [
+    {
+      "id": "cn-2025-10-31-baobhan-sith-np",
+      "servantId": "archer-baobhan-sith",
+      "status": "released",
+      "target": {
+        "type": "noble_phantasm",
+        "targetId": "baobhan-sith-quick-single",
+        "targetName": "痛幻的哭奏"
+      },
+      "releasedAt": "2025-10-31",
+      "evidence": {
+        "title": "「Lostbelt No.6」通关应援纪念活动",
+        "publisher": "命运-冠位指定",
+        "url": "https://game.bilibili.com/fgo/news.html",
+        "publishedAt": "2025-10-31"
+      },
+      "summary": ["常驻追加从者强化任务", "宝具「痛幻的哭奏」获得强化"]
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+name: Verify CN upstream data
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 3 * * *"
+
+permissions:
+  contents: read
+
+jobs:
+  verify-upstream:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.17.0
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm data:sync:atlas
+      - run: pnpm data:prepare
+      - run: pnpm snapshot:build
+      - name: Upload upstream diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cn-upstream-verification
+          path: |
+            data/raw/atlas-cn/nice_servant.json
+            data/staged/atlas-cn/servant-candidates.json
+            data/reports/
+            data/normalized/cn/servants.reviewed.json
+            data/generated/

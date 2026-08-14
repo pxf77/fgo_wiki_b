@@ -1,0 +1,21 @@
+{
+  "name": "@fgo-wiki/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/server.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx watch src/server.ts",
+    "start": "node dist/server.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "tsx --test src/*.test.ts"
+  },
+  "dependencies": {
+    "@fastify/cors": "^11.3.0",
+    "@fgo-wiki/domain": "workspace:*",
+    "@fgo-wiki/filter-engine": "workspace:*",
+    "@fgo-wiki/ranking-engine": "workspace:*",
+    "fastify": "^5.10.0"
+  }
+}

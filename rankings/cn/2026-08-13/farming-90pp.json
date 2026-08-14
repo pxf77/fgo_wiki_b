@@ -1,0 +1,42 @@
+{
+  "id": "cn-2026-08-13-farming-90pp-r1",
+  "region": "CN",
+  "mode": "farming_90pp",
+  "asOf": "2026-08-13",
+  "revision": 1,
+  "assumptions": {
+    "npLevel": 1,
+    "swapAllowed": true,
+    "craftEssenceProfile": "event_50",
+    "eventDamageBonus": false
+  },
+  "entries": [
+    {
+      "servantId": "archer-baobhan-sith",
+      "tier": "T0",
+      "conditions": ["可施加诅咒"],
+      "strengths": ["60% 自充", "单体 Quick", "诅咒层数特攻"],
+      "weaknesses": ["弱化无效会降低上限"],
+      "rationale": "强化后具备高启动性与可扩展的诅咒特攻，适合单体高血面。",
+      "confidence": "provisional"
+    },
+    {
+      "servantId": "archer-tutankhamun",
+      "tier": "T0",
+      "conditions": ["魔性目标时升档"],
+      "strengths": ["高额充能", "退场换人价值", "魔性特攻"],
+      "weaknesses": ["宝具后自身退场"],
+      "rationale": "兼具单体处理、团队充能与主动退场，多核变则价值突出。",
+      "confidence": "provisional"
+    },
+    {
+      "servantId": "archer-ptolemy",
+      "tier": "T0",
+      "conditions": ["形态切换可覆盖单双体"],
+      "strengths": ["单体/全体宝具切换", "团队增益", "高变则适配"],
+      "weaknesses": ["形态与技能时序需要规划"],
+      "rationale": "一个编成位同时覆盖单体与多体波次，是泛用变则核心。",
+      "confidence": "provisional"
+    }
+  ]
+}

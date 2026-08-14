@@ -1,0 +1,192 @@
+{
+  "schemaVersion": 1,
+  "version": "2026-08-14-r4",
+  "region": "CN",
+  "reviewedAt": "2026-08-14T08:30:00.000Z",
+  "entries": [
+    {
+      "collectionNo": 311,
+      "servantId": "archer-baobhan-sith",
+      "displayName": "妖精骑士崔斯坦（芭万·希）",
+      "aliases": ["芭万·希", "妖崔", "妖精骑士崔斯坦"],
+      "expected": {"className": "archer", "rarity": 4},
+      "release": {
+        "status": "released",
+        "releasedAt": "2023-11-09",
+        "evidence": {
+          "title": "从者介绍 -「★4（SR）妖精骑士崔斯坦」",
+          "publisher": "命运-冠位指定",
+          "url": "https://www.bilibili.com/video/BV1ie411X7C8/",
+          "publishedAt": "2023-11-09"
+        }
+      },
+      "overrides": {
+        "charge": {"self": 60, "team": 0},
+        "tags": ["单体宝具", "Quick", "诅咒", "必中", "高自充", "混沌", "恶"],
+        "role": ["main_dps", "sub_dps"],
+        "noblePhantasms": [
+          {
+            "id": "baobhan-sith-quick-single",
+            "atlasSourceId": 204302,
+            "name": "痛幻的哭奏",
+            "color": "quick",
+            "scope": "single",
+            "hitCount": 6,
+            "targetTraits": ["诅咒状态"],
+            "effects": ["必中", "诅咒", "按诅咒层数获得特攻"],
+            "strengthened": false
+          }
+        ]
+      }
+    },
+    {
+      "collectionNo": 350,
+      "servantId": "archer-minamoto-no-tametomo",
+      "displayName": "源为朝",
+      "aliases": ["镇西八郎"],
+      "expected": {"className": "archer", "rarity": 5},
+      "release": {
+        "status": "released",
+        "releasedAt": "2023-07-05",
+        "evidence": {
+          "title": "从者介绍 -「★5（SSR）源为朝」",
+          "publisher": "命运-冠位指定",
+          "url": "https://www.bilibili.com/video/BV1oV4y1a7Ux/",
+          "publishedAt": "2023-07-05"
+        }
+      },
+      "overrides": {
+        "charge": {"self": 30, "team": 0},
+        "tags": ["全体宝具", "Buster", "秩序特攻", "无敌贯通", "无视防御", "30自充", "必中"],
+        "role": ["main_dps"],
+        "noblePhantasms": [
+          {
+            "id": "tametomo-buster-aoe",
+            "atlasSourceId": 204601,
+            "name": "轰沉·弓张月",
+            "color": "buster",
+            "scope": "aoe",
+            "hitCount": 4,
+            "targetTraits": ["秩序"],
+            "effects": ["无敌贯通", "无视防御", "水边场地Buster性能提升", "秩序特攻"],
+            "strengthened": false
+          }
+        ]
+      }
+    },
+    {
+      "collectionNo": 383,
+      "servantId": "archer-durga",
+      "displayName": "杜尔伽",
+      "aliases": ["迦梨", "杜尔伽／迦梨"],
+      "expected": {"className": "archer", "rarity": 5},
+      "release": {
+        "status": "released",
+        "releasedAt": "2024-06-25",
+        "evidence": {
+          "title": "从者介绍 -「★5（SSR）杜尔伽」",
+          "publisher": "命运-冠位指定",
+          "url": "https://www.bilibili.com/video/BV1B1421r7E7/",
+          "publishedAt": "2024-06-25"
+        }
+      },
+      "overrides": {
+        "charge": {"self": 50, "team": 0},
+        "tags": ["全体宝具", "Arts", "天之力特攻", "魔性特攻", "50自充", "无敌贯通", "全卡Arts化"],
+        "role": ["main_dps", "sub_dps"],
+        "noblePhantasms": [
+          {
+            "id": "durga-arts-aoe",
+            "atlasSourceId": 204801,
+            "name": "愤怒啊，愿望啊，戮尽诸魔的女神啊",
+            "color": "arts",
+            "scope": "aoe",
+            "hitCount": 8,
+            "targetTraits": ["天之力", "魔性"],
+            "effects": ["天之力特攻状态", "魔性特攻", "防御力下降"],
+            "strengthened": false
+          }
+        ]
+      }
+    },
+    {
+      "collectionNo": 394,
+      "servantId": "archer-ptolemy",
+      "displayName": "托勒密",
+      "aliases": ["老托"],
+      "expected": {"className": "archer", "rarity": 5},
+      "release": {
+        "status": "released",
+        "releasedAt": "2024-10-24",
+        "evidence": {
+          "title": "从者介绍 -「★5（SSR）托勒密」",
+          "publisher": "命运-冠位指定",
+          "url": "https://www.bilibili.com/video/BV1Y31KYfEbp/",
+          "publishedAt": "2024-10-24"
+        }
+      },
+      "overrides": {
+        "charge": {"self": 50, "team": 0},
+        "tags": ["单体宝具", "全体宝具", "Buster", "Arts", "形态切换", "变则"],
+        "role": ["main_dps", "sub_dps"],
+        "noblePhantasms": [
+          {
+            "id": "ptolemy-buster-single",
+            "atlasSourceId": 205001,
+            "name": "月は知らず、久遠の光",
+            "color": "buster",
+            "scope": "single",
+            "hitCount": 5,
+            "effects": ["无视防御"],
+            "strengthened": false
+          },
+          {
+            "id": "ptolemy-arts-aoe",
+            "atlasSourceId": 205002,
+            "name": "王之书库",
+            "color": "arts",
+            "scope": "aoe",
+            "hitCount": 5,
+            "effects": ["形态切换", "全体攻击"],
+            "strengthened": false
+          }
+        ]
+      }
+    },
+    {
+      "collectionNo": 427,
+      "servantId": "archer-tutankhamun",
+      "displayName": "图坦卡蒙",
+      "aliases": ["图坦"],
+      "expected": {"className": "archer", "rarity": 5},
+      "release": {
+        "status": "released",
+        "releasedAt": "2025-11-13",
+        "evidence": {
+          "title": "从者介绍 -「★5（SSR）图坦卡蒙」",
+          "publisher": "迦勒底活动小助手",
+          "url": "https://www.taptap.cn/moment/738077897524250895",
+          "publishedAt": "2025-11-13"
+        }
+      },
+      "overrides": {
+        "charge": {"self": 60, "team": 20},
+        "tags": ["单体宝具", "Arts", "魔性特攻", "群充", "主动退场", "多核"],
+        "role": ["main_dps", "sub_dps", "plug_in"],
+        "noblePhantasms": [
+          {
+            "id": "tutankhamun-arts-single",
+            "atlasSourceId": 205302,
+            "name": "暝暗之匣",
+            "color": "arts",
+            "scope": "single",
+            "hitCount": 5,
+            "targetTraits": ["魔性"],
+            "effects": ["魔性特攻", "宝具后自身退场"],
+            "strengthened": false
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+FROM node:24-bookworm-slim AS build
+WORKDIR /workspace
+RUN npm install --global pnpm@11.17.0
+COPY . .
+RUN pnpm install --frozen-lockfile
+RUN pnpm turbo run build --filter=@fgo-wiki/worker...
+
+FROM node:24-bookworm-slim AS runtime
+WORKDIR /workspace
+ENV NODE_ENV=production
+COPY --from=build /workspace /workspace
+CMD ["node", "apps/worker/dist/index.js", "snapshot"]

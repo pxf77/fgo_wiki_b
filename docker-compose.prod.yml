@@ -1,0 +1,18 @@
+services:
+  postgres:
+    profiles: ["local-db"]
+
+  api:
+    image: ${API_IMAGE}
+    depends_on: []
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      CORS_ORIGIN: ${CORS_ORIGIN}
+      SNAPSHOT_PATH: /workspace/data/generated/latest/snapshot.json
+    volumes:
+      - ./data:/workspace/data:ro
+    restart: unless-stopped
+
+  worker:
+    image: ${WORKER_IMAGE}
+    restart: "no"

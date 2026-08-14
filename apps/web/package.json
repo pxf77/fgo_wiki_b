@@ -1,0 +1,22 @@
+{
+  "name": "@fgo-wiki/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "next build",
+    "dev": "next dev --hostname 0.0.0.0 --port 3000",
+    "start": "npx serve out",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "tsx --test lib/*.test.ts"
+  },
+  "dependencies": {
+    "@fgo-wiki/domain": "workspace:*",
+    "@fgo-wiki/filter-engine": "workspace:*",
+    "@fgo-wiki/ranking-engine": "workspace:*",
+    "@fgo-wiki/shared-ui": "workspace:*",
+    "next": "^16.2.12",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  }
+}

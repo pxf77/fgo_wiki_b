@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { sortRankingEntries } from "@fgo-wiki/ranking-engine";
+import { servantFaceUrl } from "@fgo-wiki/shared-ui";
 import { classLabels } from "../../../lib/class-labels";
 import { loadBuildCatalog, loadBuildServantSnapshot } from "../../../lib/build-snapshot";
 
@@ -19,15 +20,21 @@ export default async function ServantDetailPage({ params }: { params: Promise<{ 
     .map((ranking) => ({ ranking, entry: sortRankingEntries(ranking.entries)[0] }))
     .filter((row) => row.entry !== undefined);
   const evidence = servant.release.evidence;
+  const faceUrl = servantFaceUrl(servant);
 
   return (
     <main className="detail-page">
       <Link className="back-link" href={`/classes/${servant.className}/`}>← 返回 {classLabels[servant.className]}</Link>
       <header className="detail-hero">
-        <div>
-          <p className="eyebrow">{servant.rarity}★ {classLabels[servant.className]} · {servant.profile ?? "未分类"}</p>
-          <h1>{servant.name}</h1>
-          {servant.aliases.length ? <p className="lead">别名：{servant.aliases.join(" / ")}</p> : null}
+        <div className="detail-identity">
+          {faceUrl ? (
+            <img className="detail-avatar" src={faceUrl} alt={`${servant.name}头像`} decoding="async" />
+          ) : null}
+          <div>
+            <p className="eyebrow">{servant.rarity}★ {classLabels[servant.className]} · {servant.profile ?? "未分类"}</p>
+            <h1>{servant.name}</h1>
+            {servant.aliases.length ? <p className="lead">别名：{servant.aliases.join(" / ")}</p> : null}
+          </div>
         </div>
         <dl className="release-card">
           <div><dt>数据版本</dt><dd>{snapshot.metadata.datasetVersion}</dd></div>

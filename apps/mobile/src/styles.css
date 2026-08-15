@@ -15,9 +15,14 @@ main { min-height: 100vh; padding: max(24px, env(safe-area-inset-top)) 16px max(
 .mobile-list { display: grid; gap: 14px; }
 .mobile-card-shell { position: relative; }
 .favorite { position: absolute; z-index: 2; right: 16px; top: 16px; background: #8c3526; padding: 7px 11px; font-size: 0.75rem; }
-.mobile-servant-card { min-height: 260px; padding: 20px; border-radius: 20px; border: 1px solid #d2c5b4; background: #fffdf8; }
+.mobile-servant-card { min-height: 290px; padding: 20px; border-radius: 20px; border: 1px solid #d2c5b4; background: #fffdf8; }
 .mobile-servant-card header { display: flex; justify-content: space-between; padding-right: 78px; color: #71665b; font-size: 0.75rem; }
 .mobile-servant-card header strong { color: #a43827; }
-.mobile-servant-card h3 { margin: 24px 0 10px; font: 1.35rem Georgia, "Songti SC", serif; }
+.mobile-servant-card .servant-card-identity { display: grid; grid-template-columns: 76px minmax(0, 1fr); gap: 14px; align-items: center; margin: 18px 0 12px; }
+.mobile-servant-card .servant-avatar { position: relative; width: 76px; aspect-ratio: 1; overflow: hidden; display: grid; place-items: center; border: 1px solid #d2c5b4; border-radius: 18px; background: linear-gradient(145deg, #eadfce, #d5c0a4); color: #8c3526; font: 1.6rem/1 Georgia, "Songti SC", serif; }
+.mobile-servant-card .servant-avatar img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.mobile-servant-card .servant-card-title h3 { margin: 0 0 6px; font: 1.35rem/1.15 Georgia, "Songti SC", serif; }
+.mobile-servant-card .servant-card-title span { color: #8b7d70; font-size: 0.7rem; letter-spacing: 0.06em; text-transform: uppercase; }
 .mobile-servant-card p { color: #5e554c; line-height: 1.55; }
-.mobile-servant-card div { color: #8c3526; font-size: 0.78rem; line-height: 1.6; }
+.mobile-servant-card .servant-tags { color: #8c3526; font-size: 0.78rem; line-height: 1.6; }
+.mobile-servant-card .servant-rationale { margin-bottom: 0; font-size: 0.86rem; }

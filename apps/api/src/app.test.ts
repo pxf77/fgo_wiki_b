@@ -37,6 +37,23 @@ test("filters servants through the HTTP boundary", async () => {
   await app.close();
 });
 
+test("serves a class-scoped dataset instead of the global snapshot", async () => {
+  const app = await buildApp({ config, repository });
+  const response = await app.inject({ method: "GET", url: "/api/v1/classes/archer" });
+  assert.equal(response.statusCode, 200);
+  const snapshot = response.json() as typeof bootstrapSnapshot;
+  assert.ok(snapshot.servants.length > 0);
+  assert.ok(snapshot.servants.every((servant) => servant.className === "archer"));
+  const ids = new Set(snapshot.servants.map((servant) => servant.id));
+  assert.ok(
+    snapshot.rankings.every((ranking) =>
+      ranking.entries.every((entry) => ids.has(entry.servantId)),
+    ),
+  );
+  assert.equal(response.headers["cache-control"], "public, max-age=60");
+  await app.close();
+});
+
 test("serves the read-only data-status endpoint without caching", async () => {
   const dashboard: DataStatusDashboard = {
     generatedAt: "2026-08-14T00:00:00.000Z",

@@ -1,8 +1,25 @@
 {
   "schemaVersion": 1,
-  "version": "2026-08-14-r4",
+  "version": "2026-08-15-r6",
   "region": "CN",
-  "reviewedAt": "2026-08-14T08:30:00.000Z",
+  "reviewedAt": "2026-08-15T01:45:00.000Z",
+  "autoPublishClasses": [
+    "saber",
+    "archer",
+    "lancer",
+    "rider",
+    "caster",
+    "assassin",
+    "berserker",
+    "ruler",
+    "avenger",
+    "moon_cancer",
+    "alter_ego",
+    "foreigner",
+    "pretender",
+    "shielder",
+    "beast"
+  ],
   "entries": [
     {
       "collectionNo": 311,

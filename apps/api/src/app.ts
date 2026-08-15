@@ -1,10 +1,12 @@
 // Public and internal HTTP routes.
 import cors from "@fastify/cors";
-import type {
-  CardColor,
-  NoblePhantasmScope,
-  RankingMode,
-  ServantClass,
+import {
+  servantClasses,
+  type CardColor,
+  type DatasetSnapshot,
+  type NoblePhantasmScope,
+  type RankingMode,
+  type ServantClass,
 } from "@fgo-wiki/domain";
 import { filterServants, type ServantFilter } from "@fgo-wiki/filter-engine";
 import { findRanking, sortRankingEntries } from "@fgo-wiki/ranking-engine";
@@ -38,7 +40,9 @@ const rankingModes = new Set<RankingMode>([
   "high_difficulty",
   "support",
   "np1_value",
+  "np5_value",
 ]);
+const validClasses = new Set<string>(servantClasses);
 
 function asBoolean(value: string | undefined): boolean | undefined {
   if (value === undefined) return undefined;
@@ -67,6 +71,26 @@ function buildServantFilter(query: ServantQuerystring): ServantFilter {
   return filter;
 }
 
+function classDataset(snapshot: DatasetSnapshot, className: ServantClass): DatasetSnapshot {
+  const servants = snapshot.servants.filter((servant) => servant.className === className);
+  const ids = new Set(servants.map((servant) => servant.id));
+  return {
+    metadata: {
+      ...snapshot.metadata,
+      ...(snapshot.metadata.sourceVersions
+        ? { sourceVersions: { ...snapshot.metadata.sourceVersions } }
+        : {}),
+    },
+    servants,
+    rankings: snapshot.rankings.map((ranking) => ({
+      ...ranking,
+      assumptions: { ...ranking.assumptions },
+      entries: ranking.entries.filter((entry) => ids.has(entry.servantId)),
+    })),
+    changelog: [...snapshot.changelog],
+  };
+}
+
 export async function buildApp(options: BuildAppOptions): Promise<FastifyInstance> {
   const app = Fastify({
     logger: {
@@ -85,8 +109,26 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   });
 
   app.get("/health", async () => ({ status: "ok" }));
-
   app.get("/api/v1/meta", async () => options.repository.getSnapshot().metadata);
+
+  app.get<{ Params: { className: string } }>(
+    "/api/v1/classes/:className",
+    async (request, reply) => {
+      if (!validClasses.has(request.params.className)) {
+        return reply.code(400).send({ message: "Unknown servant class" });
+      }
+      const snapshot = classDataset(
+        options.repository.getSnapshot(),
+        request.params.className as ServantClass,
+      );
+      if (snapshot.servants.length === 0) {
+        return reply.code(404).send({ message: "Class dataset not published" });
+      }
+      reply.header("etag", `\"${snapshot.metadata.datasetVersion}:${request.params.className}\"`);
+      reply.header("cache-control", "public, max-age=60");
+      return snapshot;
+    },
+  );
 
   app.get<{ Querystring: ServantQuerystring }>("/api/v1/servants", async (request) => {
     const snapshot = options.repository.getSnapshot();
@@ -128,9 +170,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   app.get("/api/internal/data-status", async (_request, reply) => {
     reply.header("cache-control", "no-store");
     if (!options.dataStatusRepository) {
-      return reply.code(503).send({
-        message: "Data status repository is not configured",
-      });
+      return reply.code(503).send({ message: "Data status repository is not configured" });
     }
 
     try {

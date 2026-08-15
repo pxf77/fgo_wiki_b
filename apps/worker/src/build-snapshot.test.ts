@@ -6,6 +6,7 @@ import { basename, dirname, join } from "node:path";
 import {
   bootstrapServants,
   type DatasetMetadata,
+  type DatasetSnapshot,
   type RankingMode,
   type RankingSnapshot,
 } from "@fgo-wiki/domain";
@@ -96,7 +97,7 @@ function buildFixture(fixture: SnapshotFixture): Promise<string> {
   });
 }
 
-test("publishes source-aware immutable dataset paths", async () => {
+test("publishes source-aware immutable dataset paths and P1 shards", async () => {
   const temporaryRoot = await mkdtemp(join(tmpdir(), "fgo-snapshot-"));
   try {
     const fixture = await createFixture(temporaryRoot);
@@ -114,6 +115,18 @@ test("publishes source-aware immutable dataset paths", async () => {
     const latestPointer = JSON.parse(
       await readFile(join(fixture.outputRoot, "latest.json"), "utf8"),
     ) as Record<string, unknown>;
+    const archerShard = JSON.parse(
+      await readFile(join(versionDirectory, "classes", "archer.json"), "utf8"),
+    ) as DatasetSnapshot;
+    const detailShard = JSON.parse(
+      await readFile(
+        join(versionDirectory, "servants", `${bootstrapServants[0]!.id}.json`),
+        "utf8",
+      ),
+    ) as DatasetSnapshot;
+    const latestArcherShard = JSON.parse(
+      await readFile(join(fixture.outputRoot, "latest", "classes", "archer.json"), "utf8"),
+    ) as DatasetSnapshot;
 
     assert.equal(basename(versionDirectory), expectedVersion);
     assert.equal(metadata.datasetVersion, expectedVersion);
@@ -128,6 +141,20 @@ test("publishes source-aware immutable dataset paths", async () => {
       releaseDescriptor.snapshotUrl,
       `https://static.example.cn/snapshots/${expectedVersion}/snapshot.json`,
     );
+    assert.equal(archerShard.servants.length, bootstrapServants.length);
+    assert.equal(latestArcherShard.servants.length, bootstrapServants.length);
+    assert.equal(detailShard.servants.length, 1);
+    assert.ok(
+      archerShard.rankings.some(
+        (entry) => entry.mode === "np1_value" && entry.entries.length === bootstrapServants.length,
+      ),
+    );
+    assert.ok(
+      archerShard.rankings.some(
+        (entry) => entry.mode === "np5_value" && entry.entries.length === bootstrapServants.length,
+      ),
+    );
+    assert.ok(detailShard.rankings.every((entry) => entry.entries.length <= 1));
   } finally {
     await rm(temporaryRoot, { recursive: true, force: true });
   }

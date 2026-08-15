@@ -1,137 +1,96 @@
-# 国服职介候选目录
+# 国服职介覆盖目录
 
-## 目的
-
-扩展某个职介时，不手工遍历 Atlas 全量 JSON，也不按名称猜测宝具身份。Worker 生成：
+Worker 生成：
 
 ```text
 data/reports/cn-class-catalog.json
 ```
 
-报告将 Atlas 候选、国服实装来源、实装 Gate 和强化事件来源合并为只读工作目录。
+目录用于查看 Atlas CN 候选、当前发布覆盖、NP 当前强化状态与各职阶规模。当前 `autoPublishClasses` 已启用全部 15 个领域职阶，因此正常 live 数据不再产生“逐从者补实装来源”的人工录入队列。
 
-## 生成方式
+## Live 覆盖
+
+2026-08-15 Atlas CN 验证：
+
+```text
+Saber        55 / 55
+Archer       50 / 50
+Lancer       52 / 52
+Rider        47 / 47
+Caster       51 / 51
+Assassin     45 / 45
+Berserker    46 / 46
+Ruler        18 / 18
+Avenger      17 / 17
+Moon Cancer  11 / 11
+Alter Ego    18 / 18
+Foreigner    15 / 15
+Pretender    11 / 11
+Shielder      1 / 1
+Beast         1 / 1
+------------------
+Total       438 / 438
+```
+
+`missingReleaseSources = 0`。
+
+## Curated overlay
+
+Atlas CN 当前 roster 与客观字段并不要求为 438 名从者各维护一份重复的人工 release entry。
+
+`data/cn-release-evidence.json` 中的 curated entry 用于：
+
+- 独立国服官方来源链接；
+- 别名和稳定展示名；
+- 产品稳定 ID；
+- 确需人工修正的展示字段。
+
+当前已有 Archer curated 条目继续覆盖自动生成值，其余从者使用稳定 ID：
+
+```text
+<class>-c<collectionNo>
+```
+
+## 当前强化状态
+
+对 auto-published 条目：
+
+- `atlas_current`：当前 CN NP variant 已是强化版本；
+- `evidenced`：同时存在版本化 dated event；
+- `not_strengthened`：当前仍是基础版本。
+
+Atlas current state 不用于伪造历史强化日期。历史日期仍由 `data/cn-strengthening-evidence.json` 单点拥有。
+
+## Role / Capability
+
+目录与下游 Snapshot 现在为全职阶共享同一角色语义：
+
+```text
+attacker_single
+attacker_aoe
+support
+hybrid
+```
+
+以及：
+
+```text
+offense / support / survival / control
+cleanse / pierce / cooldown / critical
+```
+
+这些字段由 Atlas 当前 skill/function/buff 规范化派生，供 90++、高难和 Support 规则榜使用；不要为不同职阶复制排名实现。
+
+## Fixture 与 live 验证
+
+PR CI 使用 64 人稳定 Fixture：50 名完整 Archer + 14 名其他职阶代表，覆盖全部 15 职阶。
+
+真实总覆盖通过上游工作流验证：
 
 ```bash
 pnpm data:sync:atlas
 pnpm data:prepare
+pnpm snapshot:build
 ```
 
-已有候选与门禁报告时：
-
-```bash
-pnpm data:catalog
-```
-
-Fixture 验证也生成相同合同：
-
-```bash
-pnpm data:prepare:fixture
-```
-
-## 报告内容
-
-### 职介覆盖率
-
-每个职介包含：
-
-- Atlas 可玩候选数量。
-- 已通过国服实装 Gate 的数量。
-- 尚未补实装来源的数量。
-- 已发布从者中 Atlas 标记为强化后的宝具数量。
-- 已由国服强化事件证明的宝具数量。
-- 已发布从者中仍缺强化事件的宝具数量。
-
-缺来源候选是工作列表，不阻断已通过事实门禁的数据发布。
-
-### 候选条目
-
-每个候选展示：
-
-- `atlasId` 与 `collectionNo`。
-- 名称、职介、稀有度。
-- 当前 Atlas NP 的 `atlasSourceId`、色卡、范围、Hit 数与强化提示。
-- 是否已有通过 Gate 的国服实装来源。
-- 已发布宝具是否已有国服强化事件。
-
-尚无实装来源时生成不完整模板：
-
-```text
-release = null
-charge = null
-tags = []
-role = []
-effects = []
-```
-
-这些空值是待核验项，不能通过生产事实源 Schema。
-
-## 宝具身份
-
-产品公开合同使用稳定字符串 ID：
-
-```text
-baobhan-sith-quick-single
-```
-
-同时保存当前 live Atlas 数值身份：
-
-```json
-{
-  "id": "baobhan-sith-quick-single",
-  "atlasSourceId": 204302
-}
-```
-
-实装 Gate 校验：
-
-- Atlas NP ID 属于对应 `collectionNo`。
-- 色卡与范围一致。
-- 双方都提供 Hit 数时一致。
-- 同一 Atlas NP 不得重复映射。
-
-Atlas 同一宝具可能同时存在基础、强化与隐藏版本。目录只使用规范化阶段选出的当前常规版本，不直接遍历所有原始 NP 行。
-
-宝具强化仍由独立强化事件来源决定；Atlas `strengthStatus` 只用于发现缺口。
-
-## 2026-08-14 live 基线
-
-```text
-All playable Atlas candidates: 438
-Archer candidates:              50
-Archer passed releases:          3
-Archer missing release sources: 47
-Archer Atlas-strengthened NPs among passed servants: 1
-Archer evidenced released NPs:   1
-Archer missing strengthening events: 0
-```
-
-当前通过实装 Gate 的 Archer：
-
-| collectionNo | 从者 | 当前 Atlas NP ID |
-|---:|---|---|
-| 311 | 妖精骑士崔斯坦（芭万·希） | `204302` |
-| 394 | 托勒密 | `205001`, `205002` |
-| 427 | 图坦卡蒙 | `205302` |
-
-剩余 47 名只存在于缺来源工作队列。
-
-## 弓阶扩展步骤
-
-```text
-运行 live Atlas 数据链
-  ↓
-筛选 className=archer
-  ↓
-按 collectionNo 核验国服实装来源与产品字段
-  ↓
-写入 data/cn-release-evidence.json 并提升 version
-  ↓
-根据 missingStrengtheningEvents 补强化事件并提升 version
-  ↓
-CI 执行身份 Gate、显式版本 Gate 和 Snapshot 构建
-  ↓
-GitHub Pull Request 人工 Review
-```
-
-目录负责暴露缺口，不替代事实核验，也不建立第二套审批状态。
+当前 live Artifact 已确认 438 reviewed servants、15 class shards 和 438 servant detail shards。

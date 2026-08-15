@@ -8,6 +8,7 @@ export interface AtlasNiceFunction {
   funcType: string;
   funcTargetType: string;
   funcTargetTeam?: string;
+  buffTypes: string[];
   svals: AtlasNiceSval[];
 }
 
@@ -94,6 +95,12 @@ function parseSval(value: unknown, context: string): AtlasNiceSval {
   return result;
 }
 
+function parseBuffType(value: unknown): string | undefined {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return undefined;
+  const type = (value as JsonRecord).type;
+  return typeof type === "string" && type.trim().length > 0 ? type.trim() : undefined;
+}
+
 function parseFunction(value: unknown, context: string): AtlasNiceFunction {
   const record = asRecord(value, context);
   const funcTargetTeam = optionalString(record, "funcTargetTeam");
@@ -101,6 +108,9 @@ function parseFunction(value: unknown, context: string): AtlasNiceFunction {
     funcType: typeof record.funcType === "string" ? record.funcType : "",
     funcTargetType: typeof record.funcTargetType === "string" ? record.funcTargetType : "",
     ...(funcTargetTeam ? { funcTargetTeam } : {}),
+    buffTypes: optionalArray(record, "buffs")
+      .map(parseBuffType)
+      .filter((entry): entry is string => entry !== undefined),
     svals: optionalArray(record, "svals").map((entry, index) =>
       parseSval(entry, `${context}.svals[${index}]`),
     ),

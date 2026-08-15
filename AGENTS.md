@@ -9,52 +9,88 @@ This repository is a CN-region FGO ranking and decision product, not a full ency
 - `packages/domain` owns public data contracts.
 - `packages/filter-engine` owns deterministic servant filtering.
 - `packages/ranking-engine` owns ranking selection/order, not editorial conclusions.
-- `apps/worker/src/computed-rankings.ts` owns transparent computed fallback rankings.
+- `apps/worker/src/computed-rankings.ts` owns transparent computed fallback/data rankings.
 - `rankings/cn` owns Git-reviewed editorial ranking overrides.
-- Atlas Academy CN export owns current objective game facts for explicitly auto-published classes.
-- `data/cn-release-evidence.json` owns the allowlist of auto-published classes plus curated release/display overrides and official links.
-- `data/cn-strengthening-evidence.json` owns dated strengthening timeline evidence where curated timeline detail is available.
+- Atlas Academy CN export owns current objective game facts for auto-published classes.
+- `data/cn-release-evidence.json` owns the auto-published class policy plus curated official links, aliases and display corrections.
+- `data/cn-strengthening-evidence.json` owns dated strengthening timeline evidence where explicitly verified.
 - `data/fixtures` is deterministic test input only.
-- `apps/worker` owns Atlas ingestion, normalization, publication gates, coverage catalog and snapshot/shard compilation.
+- `apps/worker` owns Atlas ingestion, normalization, publication gates, role/capability derivation, coverage catalog and snapshot/shard compilation.
 - `apps/api` owns dynamic HTTP interfaces.
 
 `data/raw`, `data/staged`, `data/normalized`, `data/reports` and `data/generated` are generated products. Do not edit them as facts.
 
-A fact must have one owner. Do not add hash/fingerprint chains or duplicate validation. Use boundary schemas, explicit source versions and HTTP cache/ETag semantics.
+A fact must have one owner. Do not add hash/fingerprint chains, duplicate approval state or per-class copies of the same pipeline.
 
-## Region policy
+## Region and publication policy
 
-Atlas **CN** data may establish current playable roster and objective fields only for classes listed in `autoPublishClasses`. Currently this is used for Archer P0. A class not listed there remains blocked unless it has a curated source entry.
+Atlas **CN** data establishes current playable roster and objective fields for classes in `autoPublishClasses`. The production policy currently enables all 15 supported servant classes.
 
-Use Atlas `collectionNo` as the servant cross-source identity. Product servant IDs remain stable public IDs. Curated Noble Phantasms must declare `atlasSourceId`; their card, scope and available hit-count facts must match Atlas.
+Use Atlas `collectionNo` as the servant cross-source identity. Product servant IDs remain stable public IDs. Curated Noble Phantasms must declare `atlasSourceId`; card, scope and available hit-count facts must match Atlas.
 
-For auto-published Atlas CN entries, current NP strengthening state may come from the current CN NP variant. Curated entries keep base `strengthened=false` and receive dated strengthening state/timeline from `data/cn-strengthening-evidence.json`. Do not invent historical dates from Atlas current-state data.
+For auto-published entries, current NP strengthening state may come from the current CN NP variant. Curated dated timeline events remain owned by `data/cn-strengthening-evidence.json`. Never infer a historical strengthening date from current Atlas state.
+
+Curated source entries are overlays, not a requirement to manually re-enter every servant. They should be used for official links, aliases, stable display corrections and facts that cannot be deterministically derived from Atlas CN.
+
+## Role/capability policy
+
+The ranking pipeline is role-based, not class-specific. Do not implement separate Saber/Caster/etc. ranking engines.
+
+Supported profiles:
+
+```text
+attacker_single
+attacker_aoe
+support
+hybrid
+```
+
+Capability fields are deterministic current-state projections:
+
+```text
+offense
+support
+survival
+control
+cleanse
+pierce
+cooldown
+critical
+```
+
+Add new capability parsing at the Atlas normalization boundary and keep ranking formulas consuming the normalized capability contract.
 
 ## Ranking policy
 
-P0 requires complete Archer entries for `farming_90pp`, `high_difficulty`, `np1_value` and `np5_value`.
-
-- NP1/NP5 are deterministic data rankings built from objective fields such as ATK, NP multiplier, card modifier and charge.
-- 90++/high difficulty use a transparent computed fallback so every Archer is represented.
-- Git-reviewed entries in `rankings/cn` override computed entries for the same servant/mode.
-- Computed results must be marked `confidence=computed`; do not present them as human consensus.
+- `farming_90pp` and `high_difficulty` provide transparent computed coverage within each class; Git-reviewed entries override the same servant/mode.
+- `support` only includes `support` and `hybrid` profiles.
+- `np1_value` and `np5_value` only include servants with an attacking Noble Phantasm.
+- Computed scores are normalized within the servant's class so class population and class role remain the comparison boundary.
+- Computed results must use `confidence=computed`; never present them as human consensus.
 - AI may draft editorial changes but may not silently publish an editorial Tier.
 
 ## Client data policy
 
-P1 publication outputs:
+Publication outputs:
 
 ```text
 catalog.json
 classes/<class>.json
 servants/<servant-id>.json
 rankings/<mode>.json
-snapshot.json            # compatibility/API
+snapshot.json            # compatibility/API/internal tools
 ```
 
-Web should build list/filter pages from `classes/archer.json` and static detail pages from `servants/<id>.json`; do not serialize the global snapshot into the homepage client payload.
+Web root consumes the catalog, each `/classes/<class>/` page consumes only its class shard, and `/servants/<id>/` uses the servant detail shard. Do not serialize the global snapshot into the homepage client payload.
 
-Mobile should ship an independent `data/initial-snapshot.json` class shard. Do not inline the entire dataset into the JavaScript bundle. Online refresh for the Archer client should use `/api/v1/classes/archer` rather than the global dataset endpoint.
+Mobile ships independent data files:
+
+```text
+data/catalog.json
+data/classes/<class>.json
+```
+
+The JavaScript bundle must not contain the dataset body. Mobile loads the selected class on demand and uses a separate cache per class. Online refresh uses `/api/v1/classes/:className`.
 
 Normal Web/Mobile builds require `sourceStatus=reviewed`. `ALLOW_BOOTSTRAP_DATA=true` is development-only.
 
@@ -64,6 +100,14 @@ Build order:
 prepare facts -> build snapshot/shards -> build Web and Mobile -> verify artifacts
 ```
 
+## Verification policy
+
+Deterministic PR CI uses a stable all-class smoke fixture rather than committing the entire Atlas raw export. It must cover all 15 classes and keep the full 50-Archer slice.
+
+The live upstream workflow is the source of truth for current total coverage. A live run must pass Atlas sync, normalization, gates and snapshot compilation; diagnostic artifacts must expose class coverage and generated shards.
+
+Do not turn the current live count (for example 438) into a permanent production gate; upstream CN roster growth is expected.
+
 ## Publication/version policy
 
 Source-backed dataset identity remains:
@@ -72,7 +116,9 @@ Source-backed dataset identity remains:
 <ranking-date>-r<ranking-revision>--rel-<release-source-version>--str-<strengthening-source-version>
 ```
 
-Source manifest semantic changes require explicit version bumps. Editorial ranking semantic changes require ranking date/revision advancement. Do not replace these explicit identities with hashes or database counters.
+Source manifest semantic changes require explicit version bumps. Editorial ranking semantic changes require ranking date/revision advancement. Do not replace these explicit identities with custom content hashes or database counters.
+
+If pure Atlas upstream changes need their own immutable dataset identity, introduce a readable upstream revision owned by the source boundary rather than a locally computed fingerprint.
 
 Publish immutable version objects before changing `latest.json`.
 

@@ -6,65 +6,91 @@ Worker 生成：
 data/reports/cn-class-catalog.json
 ```
 
-目录用于查看 Atlas CN 候选、当前发布覆盖、NP 当前强化状态以及非 auto-published 职介仍需补充的人工来源缺口。
+目录用于查看 Atlas CN 候选、当前发布覆盖、NP 当前强化状态与各职阶规模。当前 `autoPublishClasses` 已启用全部 15 个领域职阶，因此正常 live 数据不再产生“逐从者补实装来源”的人工录入队列。
 
-## Archer P0
+## Live 覆盖
 
-`data/cn-release-evidence.json` 当前启用：
-
-```json
-{
-  "autoPublishClasses": ["archer"]
-}
-```
-
-因此 Archer 当前覆盖口径为：
+2026-08-15 Atlas CN 验证：
 
 ```text
-Atlas CN Archer candidates: 50
-Published Archer:            50
-Missing release sources:      0
+Saber        55 / 55
+Archer       50 / 50
+Lancer       52 / 52
+Rider        47 / 47
+Caster       51 / 51
+Assassin     45 / 45
+Berserker    46 / 46
+Ruler        18 / 18
+Avenger      17 / 17
+Moon Cancer  11 / 11
+Alter Ego    18 / 18
+Foreigner    15 / 15
+Pretender    11 / 11
+Shielder      1 / 1
+Beast         1 / 1
+------------------
+Total       438 / 438
 ```
 
-5 条 curated Archer 继续提供稳定产品 ID、别名、独立国服来源链接和更丰富的展示说明；其他 Archer 使用稳定自动 ID：
+`missingReleaseSources = 0`。
+
+## Curated overlay
+
+Atlas CN 当前 roster 与客观字段并不要求为 438 名从者各维护一份重复的人工 release entry。
+
+`data/cn-release-evidence.json` 中的 curated entry 用于：
+
+- 独立国服官方来源链接；
+- 别名和稳定展示名；
+- 产品稳定 ID；
+- 确需人工修正的展示字段。
+
+当前已有 Archer curated 条目继续覆盖自动生成值，其余从者使用稳定 ID：
 
 ```text
-archer-c<collectionNo>
+<class>-c<collectionNo>
 ```
 
 ## 当前强化状态
 
-对于 auto-published Archer，Atlas CN 当前 NP variant 的 `strengthStatus` 表示当前区域已经选择到的强化后版本，可直接用于“当前是否已强化”的事实展示。
+对 auto-published 条目：
 
-这与 dated strengthening timeline 分层：
+- `atlas_current`：当前 CN NP variant 已是强化版本；
+- `evidenced`：同时存在版本化 dated event；
+- `not_strengthened`：当前仍是基础版本。
 
-- `atlas_current`：当前 CN 状态已强化，但没有在本仓库维护独立历史日期。
-- `evidenced`：同时有 `data/cn-strengthening-evidence.json` 中的 dated event。
-- `not_strengthened`：当前 NP 仍为基础状态。
+Atlas current state 不用于伪造历史强化日期。历史日期仍由 `data/cn-strengthening-evidence.json` 单点拥有。
 
-不能从 `atlas_current` 推导或伪造强化日期。
+## Role / Capability
 
-## 非 auto-published 职介
+目录与下游 Snapshot 现在为全职阶共享同一角色语义：
 
-其他职介仍按原工作队列语义：Atlas 候选不会自动进入发布数据，目录会生成不完整来源模板，待后续明确加入 `autoPublishClasses` 或补 curated source。
+```text
+attacker_single
+attacker_aoe
+support
+hybrid
+```
 
-## 宝具身份
+以及：
 
-Curated 条目使用产品稳定 ID，并以 `atlasSourceId` 关联当前 Atlas NP。Gate 校验 NP 所属从者、色卡、范围和可用 Hit 数。
+```text
+offense / support / survival / control
+cleanse / pierce / cooldown / critical
+```
 
-Auto-published 条目以当前 Atlas NP 生成稳定数据合同，并保留 `atlasSourceId`。
+这些字段由 Atlas 当前 skill/function/buff 规范化派生，供 90++、高难和 Support 规则榜使用；不要为不同职阶复制排名实现。
 
-## 使用
+## Fixture 与 live 验证
+
+PR CI 使用 64 人稳定 Fixture：50 名完整 Archer + 14 名其他职阶代表，覆盖全部 15 职阶。
+
+真实总覆盖通过上游工作流验证：
 
 ```bash
 pnpm data:sync:atlas
 pnpm data:prepare
+pnpm snapshot:build
 ```
 
-确定性 P0 Fixture：
-
-```bash
-pnpm data:prepare:fixture
-```
-
-Fixture 直接使用完整 50 名 Archer 的规范化候选快照，从 Gate 之后验证产品覆盖；生产仍从 Atlas raw export 开始执行 normalizer。
+当前 live Artifact 已确认 438 reviewed servants、15 class shards 和 438 servant detail shards。

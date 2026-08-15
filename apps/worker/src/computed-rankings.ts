@@ -4,6 +4,9 @@ import type {
   RankingMode,
   RankingSnapshot,
   Servant,
+  ServantCapabilities,
+  ServantClass,
+  ServantProfile,
   Tier,
 } from "@fgo-wiki/domain";
 
@@ -12,16 +15,34 @@ interface RawEntry {
   raw: number;
 }
 
-const cardModifier = {
-  quick: 0.8,
-  arts: 1,
-  buster: 1.5,
-} as const;
+const cardModifier = { quick: 0.8, arts: 1, buster: 1.5 } as const;
+const emptyCapabilities: ServantCapabilities = {
+  offense: 0,
+  support: 0,
+  survival: 0,
+  control: 0,
+  cleanse: 0,
+  pierce: 0,
+  cooldown: 0,
+  critical: 0,
+};
+
+function capabilities(servant: Servant): ServantCapabilities {
+  return servant.capabilities ?? emptyCapabilities;
+}
 
 function attackingNoblePhantasms(servant: Servant): NoblePhantasm[] {
-  return servant.noblePhantasms.filter(
-    (np) => np.scope === "single" || np.scope === "aoe" || np.scope === "special",
-  );
+  return servant.noblePhantasms.filter((np) => np.scope !== "support");
+}
+
+function profile(servant: Servant): ServantProfile {
+  if (servant.profile) return servant.profile;
+  const attacks = attackingNoblePhantasms(servant);
+  if (attacks.length === 0) return "support";
+  if (attacks.some((np) => np.scope === "single") && attacks.some((np) => np.scope === "aoe")) {
+    return "hybrid";
+  }
+  return attacks.some((np) => np.scope === "aoe") ? "attacker_aoe" : "attacker_single";
 }
 
 function npMultiplier(np: NoblePhantasm, npLevel: 1 | 2 | 3 | 4 | 5): number {
@@ -35,19 +56,44 @@ function damageProxy(servant: Servant, npLevel: 1 | 2 | 3 | 4 | 5): number {
   return Math.max(
     0,
     ...attackingNoblePhantasms(servant).map(
-      (np) => atk * npMultiplier(np, npLevel) * cardModifier[np.color],
+      (np) =>
+        atk *
+        npMultiplier(np, npLevel) *
+        cardModifier[np.color] *
+        Math.max(1, np.specialAttackMultiplier ?? 1),
     ),
   );
 }
 
-function utilityWeight(servant: Servant): number {
-  let value = servant.charge.self * 1.1 + servant.charge.team * 1.6;
-  value += (servant.charge.target ?? 0) * 1.2;
-  if (servant.noblePhantasms.some((np) => np.scope === "support")) value += 30;
-  if (servant.noblePhantasms.some((np) => np.strengthened)) value += 10;
-  if (servant.noblePhantasms.length > 1) value += 20;
-  if (servant.role.includes("plug_in")) value += 20;
-  return value;
+function chargeScore(servant: Servant): number {
+  return servant.charge.self * 1.1 + servant.charge.team * 1.8 + (servant.charge.target ?? 0) * 1.4;
+}
+
+function supportScore(servant: Servant): number {
+  const cap = capabilities(servant);
+  return (
+    servant.charge.team * 2.2 +
+    (servant.charge.target ?? 0) * 1.8 +
+    cap.support * 2 +
+    cap.offense * 1.2 +
+    cap.critical +
+    cap.survival * 0.8 +
+    cap.cleanse +
+    cap.cooldown * 1.5
+  );
+}
+
+function highDifficultyUtility(servant: Servant): number {
+  const cap = capabilities(servant);
+  return (
+    chargeScore(servant) +
+    cap.survival * 2.2 +
+    cap.control * 1.8 +
+    cap.cleanse * 1.8 +
+    cap.pierce * 1.5 +
+    cap.cooldown * 1.2 +
+    cap.support
+  );
 }
 
 function rawScore(
@@ -56,20 +102,22 @@ function rawScore(
   npLevel: 1 | 2 | 3 | 4 | 5,
 ): number {
   const damage = damageProxy(servant, npLevel);
-  const utility = utilityWeight(servant);
   const atk = servant.atkMax ?? servant.rarity * 2_000;
-
+  const p = profile(servant);
   if (mode === "np1_value" || mode === "np5_value") {
     return damage * (1 + Math.min(100, servant.charge.self + servant.charge.team) / 300);
   }
+  if (mode === "support") return supportScore(servant) * Math.max(5_000, atk);
   if (mode === "farming_90pp") {
     const multiNpBonus = servant.noblePhantasms.length > 1 ? 0.2 * damage : 0;
-    return damage + utility * atk * 4 + multiNpBonus;
+    const plugin = supportScore(servant) * atk * (p === "support" ? 8 : p === "hybrid" ? 5 : 2);
+    return damage + chargeScore(servant) * atk * 4 + plugin + multiNpBonus;
   }
   if (mode === "high_difficulty") {
-    return damage * 0.7 + utility * atk * 7;
+    const roleWeight = p === "support" ? 8 : p === "hybrid" ? 6 : 4;
+    return damage * 0.55 + highDifficultyUtility(servant) * atk * roleWeight;
   }
-  return utility * atk * 5 + damage * 0.2;
+  return supportScore(servant) * atk * 5 + damage * 0.2;
 }
 
 function tierForIndex(index: number, total: number): Tier {
@@ -89,21 +137,24 @@ function normalizedScore(raw: number, min: number, max: number): number {
 
 function strengths(servant: Servant): string[] {
   const values: string[] = [];
-  if (servant.charge.self >= 50) values.push(`${servant.charge.self}% 自充`);
-  else if (servant.charge.self > 0) values.push(`${servant.charge.self}% 自充`);
+  const cap = capabilities(servant);
+  if (servant.charge.self > 0) values.push(`${servant.charge.self}% 自充`);
   if (servant.charge.team > 0) values.push(`${servant.charge.team}% 群充`);
+  if ((servant.charge.target ?? 0) > 0) values.push(`${servant.charge.target}% 单体充能`);
   if (servant.noblePhantasms.length > 1) values.push("多宝具形态");
-  if (servant.noblePhantasms.some((np) => np.strengthened)) values.push("已开放宝具强化");
-  if (servant.noblePhantasms.some((np) => (np.specialAttackMultiplier ?? 1) > 1)) {
-    values.push("具备条件特攻");
-  }
-  return values.length ? values : ["基础输出结构完整"];
+  if (servant.noblePhantasms.some((np) => np.strengthened)) values.push("当前宝具已强化");
+  if (servant.noblePhantasms.some((np) => (np.specialAttackMultiplier ?? 1) > 1)) values.push("具备条件特攻");
+  if (cap.support >= 20) values.push("团队辅助能力");
+  if (cap.survival >= 20) values.push("生存能力");
+  if (cap.control >= 10) values.push("控制能力");
+  if (cap.pierce >= 10) values.push("机制穿透");
+  return values.length ? values : ["基础结构完整"];
 }
 
 function weaknesses(servant: Servant): string[] {
   const values: string[] = [];
-  if (servant.charge.self === 0 && servant.charge.team === 0) values.push("缺少主动 NP 充能");
-  if (servant.noblePhantasms.every((np) => np.scope === "support")) values.push("非直接攻击宝具");
+  if (servant.charge.self === 0 && servant.charge.team === 0 && !servant.charge.target) values.push("缺少主动 NP 充能");
+  if (attackingNoblePhantasms(servant).length === 0) values.push("非直接攻击宝具");
   return values;
 }
 
@@ -113,35 +164,71 @@ function conditions(servant: Servant): string[] {
     : [];
 }
 
+function eligible(servant: Servant, mode: RankingMode): boolean {
+  if (mode === "np1_value" || mode === "np5_value") {
+    return attackingNoblePhantasms(servant).length > 0;
+  }
+  if (mode === "support") {
+    const p = profile(servant);
+    return p === "support" || p === "hybrid";
+  }
+  return true;
+}
+
+function rationale(mode: RankingMode, npLevel: number, servant: Servant): string {
+  if (mode === "np1_value" || mode === "np5_value") {
+    return `数据榜：按 ATK、宝具倍率、色卡、条件特攻与充能计算 NP${npLevel} 输出代理分；纯辅助宝具不进入该榜。`;
+  }
+  if (mode === "support") {
+    return `辅助规则榜：仅纳入 support / hybrid 角色，按团队/单体充能、攻辅 Buff、生存、弱化处理与减 CD 能力计算；角色画像为 ${profile(servant)}。`;
+  }
+  if (mode === "high_difficulty") {
+    return `高难规则榜：综合输出、生存、控制、弱化处理、机制穿透和充能；人工条目覆盖规则结果。`;
+  }
+  return `90++ 规则榜：综合 NP${npLevel} 输出、充能、多核与插件能力；人工条目覆盖规则结果。`;
+}
+
+function entriesForClass(
+  servants: readonly Servant[],
+  className: ServantClass,
+  mode: RankingMode,
+  npLevel: 1 | 2 | 3 | 4 | 5,
+): RankingEntry[] {
+  const rawEntries: RawEntry[] = servants
+    .filter((servant) => servant.className === className && eligible(servant, mode))
+    .map((servant) => ({ servant, raw: rawScore(servant, mode, npLevel) }));
+  rawEntries.sort(
+    (left, right) => right.raw - left.raw || left.servant.name.localeCompare(right.servant.name, "zh-CN"),
+  );
+  if (rawEntries.length === 0) return [];
+  const min = Math.min(...rawEntries.map((entry) => entry.raw));
+  const max = Math.max(...rawEntries.map((entry) => entry.raw));
+  return rawEntries.map(({ servant, raw }, index) => ({
+    servantId: servant.id,
+    tier: tierForIndex(index, rawEntries.length),
+    score: normalizedScore(raw, min, max),
+    dimensions: {
+      damage: Math.min(100, Math.round(damageProxy(servant, npLevel) / 100_000)),
+      charge: Math.min(100, Math.round(chargeScore(servant))),
+      utility: Math.min(100, Math.round(supportScore(servant) / 3)),
+      survivability: capabilities(servant).survival,
+      stability: Math.min(100, 50 + capabilities(servant).cleanse + capabilities(servant).control),
+    },
+    conditions: conditions(servant),
+    strengths: strengths(servant),
+    weaknesses: weaknesses(servant),
+    rationale: rationale(mode, npLevel, servant),
+    confidence: "computed",
+  }));
+}
+
 function computedEntries(
   servants: readonly Servant[],
   mode: RankingMode,
   npLevel: 1 | 2 | 3 | 4 | 5,
 ): RankingEntry[] {
-  const rawEntries: RawEntry[] = servants.map((servant) => ({
-    servant,
-    raw: rawScore(servant, mode, npLevel),
-  }));
-  rawEntries.sort(
-    (left, right) =>
-      right.raw - left.raw || left.servant.name.localeCompare(right.servant.name, "zh-CN"),
-  );
-  const min = Math.min(...rawEntries.map((entry) => entry.raw));
-  const max = Math.max(...rawEntries.map((entry) => entry.raw));
-
-  return rawEntries.map(({ servant, raw }, index) => ({
-    servantId: servant.id,
-    tier: tierForIndex(index, rawEntries.length),
-    score: normalizedScore(raw, min, max),
-    conditions: conditions(servant),
-    strengths: strengths(servant),
-    weaknesses: weaknesses(servant),
-    rationale:
-      mode === "np1_value" || mode === "np5_value"
-        ? `数据榜：按 ATK、宝具倍率、色卡修正与充能能力计算 NP${npLevel} 泛用输出代理分。`
-        : `规则榜：按 NP${npLevel} 输出代理、充能、多宝具与基础功能计算；人工榜单条目会覆盖该结果。`,
-    confidence: "computed",
-  }));
+  const classes = [...new Set(servants.map((servant) => servant.className))];
+  return classes.flatMap((className) => entriesForClass(servants, className, mode, npLevel));
 }
 
 function computedSnapshot(
@@ -172,7 +259,7 @@ function mergeSnapshot(
   computed: RankingSnapshot,
   editorial: RankingSnapshot | undefined,
 ): RankingSnapshot {
-  if (!editorial) return computed;
+  if (!editorial || editorial.entries.length === 0) return computed;
   const entries = new Map(computed.entries.map((entry) => [entry.servantId, entry] as const));
   for (const entry of editorial.entries) entries.set(entry.servantId, entry);
   return {
@@ -192,28 +279,16 @@ export function buildCompleteRankings(
   asOf: string,
   revision: number,
 ): RankingSnapshot[] {
-  const editorialByMode = new Map(
-    editorialRankings.map((ranking) => [ranking.mode, ranking] as const),
-  );
+  const editorialByMode = new Map(editorialRankings.map((ranking) => [ranking.mode, ranking] as const));
   const farmingNpLevel = editorialByMode.get("farming_90pp")?.assumptions.npLevel ?? 1;
-  const highDifficultyNpLevel =
-    editorialByMode.get("high_difficulty")?.assumptions.npLevel ?? 1;
+  const highDifficultyNpLevel = editorialByMode.get("high_difficulty")?.assumptions.npLevel ?? 1;
   const generated = [
     computedSnapshot(servants, "farming_90pp", asOf, revision, farmingNpLevel),
-    computedSnapshot(
-      servants,
-      "high_difficulty",
-      asOf,
-      revision,
-      highDifficultyNpLevel,
-    ),
+    computedSnapshot(servants, "high_difficulty", asOf, revision, highDifficultyNpLevel),
+    computedSnapshot(servants, "support", asOf, revision, 1),
     computedSnapshot(servants, "np1_value", asOf, revision, 1),
     computedSnapshot(servants, "np5_value", asOf, revision, 5),
   ].map((ranking) => mergeSnapshot(ranking, editorialByMode.get(ranking.mode)));
-
   const generatedModes = new Set(generated.map((ranking) => ranking.mode));
-  return [
-    ...generated,
-    ...editorialRankings.filter((ranking) => !generatedModes.has(ranking.mode)),
-  ];
+  return [...generated, ...editorialRankings.filter((ranking) => !generatedModes.has(ranking.mode))];
 }

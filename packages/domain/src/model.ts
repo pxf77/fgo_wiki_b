@@ -29,6 +29,22 @@ export type RankingMode =
   | "np5_value";
 export type Tier = "EX" | "T0" | "T0.5" | "T1" | "T1.5" | "T2" | "T3";
 export type Confidence = "high" | "medium" | "provisional" | "computed";
+export type ServantProfile =
+  | "attacker_single"
+  | "attacker_aoe"
+  | "support"
+  | "hybrid";
+
+export interface ServantCapabilities {
+  offense: number;
+  support: number;
+  survival: number;
+  control: number;
+  cleanse: number;
+  pierce: number;
+  cooldown: number;
+  critical: number;
+}
 
 export interface OfficialSource {
   title: string;
@@ -102,6 +118,8 @@ export interface Servant {
   noblePhantasms: NoblePhantasm[];
   strengthenings?: StrengtheningEvent[];
   charge: ServantCharge;
+  profile?: ServantProfile;
+  capabilities?: ServantCapabilities;
   tags: string[];
   role: Array<"main_dps" | "sub_dps" | "support" | "plug_in" | "sustain">;
   updatedAt: string;

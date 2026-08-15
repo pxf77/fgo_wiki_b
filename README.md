@@ -1,82 +1,145 @@
 # 灵基决策站（FGO 国服强度图鉴）
 
-面向 FGO 简中服的版本化强度榜、从者筛选和决策工具。当前 P0/P1 聚焦 Archer：完整国服当前事实、完整榜单覆盖、Web 详情页和按职介/从者分片的数据交付。
+面向 FGO 简中服的版本化强度榜、从者筛选与决策工具。当前实现已经从 Archer 垂直切片推广到 **15 个职阶的完整 CN 当前 roster**，Web/PWA、API 与 Capacitor App 共用按职阶分片的数据发布模型。
 
 ## 当前效果
 
 ```text
 Atlas Academy CN export
-  -> 当前 CN 可玩从者与客观技能/宝具事实
-  -> Archer 50/50 当前事实集
-  -> 人工来源/别名/展示覆盖
-  -> 90++ / 高难规则榜 + 人工覆盖
-  -> NP1 / NP5 确定性数据榜
+  -> 438 个当前可玩候选
+  -> 技能/宝具客观事实规范化
+  -> role + capability 画像
+  -> 15 职阶 current-state publication
+  -> 90++ / 高难 / Support 规则榜 + Git 人工覆盖
+  -> NP1 / NP5 攻击宝具数据榜
   -> catalog / class / servant / ranking shards
   -> Web/PWA + Fastify API + Capacitor App
 ```
 
-### Archer P0
+2026-08-15 live Atlas 验证：
 
-- 当前 Atlas CN Archer：**50/50** 纳入 reviewed 数据。
-- 5 条已有人工记录继续提供独立国服来源链接、别名和展示修正。
-- 当前 NP 强化状态由 Atlas CN 当前宝具版本提供；已有独立强化公告的条目继续保留 dated timeline。
-- 自动派生：ATK、宝具色卡/范围/Hit、宝具倍率、自充/群充/单体充能。
-- `farming_90pp`、`high_difficulty` 对全部 Archer 有条目；人工评级覆盖透明规则评分。
-- `np1_value`、`np5_value` 为完整确定性数据榜。
+| 职阶 | 数量 |
+|---|---:|
+| Saber | 55 |
+| Archer | 50 |
+| Lancer | 52 |
+| Rider | 47 |
+| Caster | 51 |
+| Assassin | 45 |
+| Berserker | 46 |
+| Ruler | 18 |
+| Avenger | 17 |
+| Moon Cancer | 11 |
+| Alter Ego | 18 |
+| Foreigner | 15 |
+| Pretender | 11 |
+| Shielder | 1 |
+| Beast | 1 |
+| **合计** | **438** |
 
-### P1 数据分片
+Live Gate 结果：**438 passed / 0 blocked / 15 classes**。
 
-Worker 同时生成：
+## 数据事实边界
+
+- Atlas Academy **CN** export 拥有 auto-published 职阶的当前 roster 与客观游戏字段。
+- `data/cn-release-evidence.json:autoPublishClasses` 当前启用全部 15 职阶；curated 条目只保留独立官方链接、别名、稳定展示 ID 与人工修正。
+- `collectionNo` 是从者跨来源主身份，`atlasSourceId` 是宝具跨来源身份。
+- 当前 NP 强化状态可由 Atlas CN 当前 NP variant 表示；**历史强化日期**仍只由 `data/cn-strengthening-evidence.json` 提供，不从 current state 反推。
+- GitHub Pull Request 是唯一人工审核入口，不建立第二套审批状态。
+
+Worker 当前确定性派生：
+
+- class / rarity / collectionNo / ATK；
+- 当前技能、宝具、Q/A/B、单体/全体/辅助、Hit；
+- NP 倍率和简单条件特攻倍率；
+- 自充、群充、单体充能；
+- 当前 NP 强化状态；
+- `attacker_single / attacker_aoe / support / hybrid` 角色画像；
+- offense / support / survival / control / cleanse / pierce / cooldown / critical 能力画像。
+
+## 排名语义
+
+当前 live 数据生成：
 
 ```text
-data/generated/<version>/catalog.json
-data/generated/<version>/classes/archer.json
-data/generated/<version>/servants/<id>.json
-data/generated/<version>/rankings/<mode>.json
-data/generated/<version>/snapshot.json
+farming_90pp:      438 entries, mixed
+high_difficulty:   438 entries, mixed
+support:           107 entries, computed
+np1_value:         392 entries, computed
+np5_value:         392 entries, computed
 ```
 
-`latest/` 下生成相同可消费分片。完整 `snapshot.json` 保留给 API 兼容和内部工具，但 Web 首页与 App 不再需要把全局 Snapshot 放进首屏/JS Bundle。
+- `farming_90pp` / `high_difficulty`：按**职阶内**归一化计算透明规则评分，已有 Git 人工条目覆盖规则结果。
+- `support`：只纳入 `support` / `hybrid` 画像，不把纯攻击手因少量自 Buff 强行放入辅助榜。
+- `np1_value` / `np5_value`：只纳入存在攻击宝具的从者；纯辅助宝具不进入伤害数据榜。
+- 规则结果标记 `confidence=computed`；人工结论保持自己的 confidence/rationale，不伪装共识。
 
-## 客户端
-
-### Web/PWA
-
-Next.js 构建默认读取：
+当前 live profile 分布：
 
 ```text
-data/generated/latest/classes/archer.json
+attacker_aoe     176
+attacker_single  155
+hybrid            61
+support            46
 ```
 
-首页提供：名称/标签、Q/A/B、单体/全体/辅助、强化状态、自充、90++、高难、NP1、NP5 筛选/排序。
+## 发布分片
 
-每个 Archer 生成静态详情页：
+每个 Dataset 同时生成：
+
+```text
+catalog.json
+classes/<class>.json             # 15 个职阶分片
+servants/<servant-id>.json       # live 438 个详情分片
+rankings/<mode>.json
+snapshot.json                    # API/内部工具兼容
+release.json
+```
+
+`data/generated/latest/` 镜像当前可消费分片。完整 Snapshot 继续存在，但客户端首屏不再要求加载整个全局数据集。
+
+## Web/PWA
+
+首页读取 `catalog.json` 并生成 15 个职阶入口：
+
+```text
+/
+/classes/saber/
+/classes/archer/
+...
+/classes/beast/
+```
+
+每个职阶页只读取自己的 class shard，支持名称/标签、Q/A/B、宝具范围、强化状态、自充以及 90++ / 高难 / Support / NP1 / NP5 切换。
+
+每名从者生成静态详情页：
 
 ```text
 /servants/<servant-id>/
 ```
 
-详情页展示宝具、倍率、Hit、当前强化状态、各模式评价，以及数据来源。已有独立国服公告的条目直接展示来源链接；其他条目明确标记为 Atlas Academy CN 当前事实，避免伪造独立公告。
+详情页展示宝具、倍率、Hit、当前强化状态、角色/能力画像、各模式评价与来源。
 
-### Capacitor App
+## Capacitor App
 
-Vite 构建从 Archer class shard 生成独立文件：
+Vite 产物使用独立数据文件：
 
 ```text
-apps/mobile/dist/data/initial-snapshot.json
+apps/mobile/dist/data/catalog.json
+apps/mobile/dist/data/classes/saber.json
+apps/mobile/dist/data/classes/archer.json
+...
 ```
 
-该文件作为离线首包数据，不再把完整数据 JSON 内联进 JS Bundle。在线刷新调用：
+App 启动先读取 catalog，用户切换职阶时按需读取对应 class shard。每个职阶使用独立本地缓存，联网刷新通过：
 
 ```http
-GET /api/v1/classes/archer
+GET /api/v1/classes/:className
 ```
 
-设备缓存只在同版本或发布时间更新时覆盖安装包数据。
+数据不会重新内联进 JavaScript Bundle。
 
 ## API
-
-主要接口：
 
 ```http
 GET /health
@@ -89,30 +152,32 @@ GET /api/v1/datasets/latest
 GET /api/internal/data-status
 ```
 
-`/api/v1/classes/archer` 返回与静态 class shard 同粒度的数据，供 App 增量更新。
+## 验证策略
 
-## 数据事实边界
+PR CI 使用确定性 Fixture：
 
-- Atlas **CN** 是明确 auto-published 职介的当前可玩 roster 和客观字段来源；当前仅启用 Archer。
-- `data/cn-release-evidence.json` 管理 `autoPublishClasses`，并保存需要独立官方来源/别名/展示修正的 curated 条目。
-- `data/cn-strengthening-evidence.json` 保存可核验的 dated strengthening timeline；Atlas current state 不用于伪造历史日期。
-- `collectionNo` 是从者跨来源主身份；`atlasSourceId` 是宝具跨来源身份。
-- GitHub Pull Request 是唯一人工审核入口。
+```text
+50 名完整 Archer
++ 14 名非 Archer 代表
+= 64 人 / 15 职阶 / 0 blocked
+```
 
-## 排名语义
+它验证所有职阶共享同一编译链，而不把 6MB 上游 raw 数据提交进 Git。
 
-- `np1_value` / `np5_value`：确定性数据榜，基于 ATK、宝具倍率、色卡修正和充能能力等客观字段。
-- `farming_90pp` / `high_difficulty`：所有 Archer 都有透明规则评分；`rankings/cn` 中人工条目对同从者/模式覆盖规则值。
-- UI 会显示 `computed / mixed / editorial` 来源与 `confidence`，不会把规则评分伪装成人工共识。
+真实覆盖由 `.github/workflows/sync-cn-data.yml` 执行 live Atlas 同步。最新 live 验证已经确认：
+
+```text
+438 reviewed servants
+15 class shards
+438 servant detail shards
+0 blocked
+```
 
 ## 本地运行
-
-要求 Node.js 24 LTS、pnpm 11。
 
 ```bash
 corepack enable
 pnpm install --frozen-lockfile
-cp .env.example .env
 pnpm data:prepare:fixture
 pnpm snapshot:build
 pnpm typecheck
@@ -130,24 +195,9 @@ pnpm snapshot:build
 pnpm build
 ```
 
-## 腾讯云部署形态
-
-```text
-Web/PWA static     -> COS -> CDN/EdgeOne
-Snapshot/shards    -> COS -> CDN/EdgeOne
-Fastify + Worker   -> CVM/Lighthouse + Docker Compose
-PostgreSQL         -> TencentDB（用户/个性化功能需要时启用）
-Images             -> TCR
-Logs               -> CLS
-```
-
-数据集不可变版本目录仍由榜单版本、release source version、strengthening source version 组成。先上传不可变目录，再更新短缓存 `latest.json`；项目不使用内容 Hash/SHA256 作为第二套发布身份。
-
 ## 当前边界
 
-P0/P1 完成后，Archer 已可作为实际产品使用，但仍有以下后续项：
-
-- 90++/高难中未人工复核的条目标记为 `computed`，后续可逐步人工覆盖，而不是阻塞全量产品。
-- 其余职介尚未加入 `autoPublishClasses`。
-- Android/iOS 原生工程、商店签名包和腾讯云真实线上部署仍待后续阶段。
-- 复杂技能效果/特攻对象的完整结构化仍可继续增强。
+- 90++ / 高难只有已有 Archer 条目是人工 editorial override，其余当前为透明 computed 结果；后续应优先人工复核高价值/争议从者，而不是阻塞全量产品。
+- Capability 目前覆盖主要技能功能类型，复杂场地、状态联动、特攻对象和特殊战斗机制仍可继续结构化。
+- Android/iOS 原生工程、签名包与腾讯云真实线上部署仍属于后续阶段。
+- Dataset identity 目前仍由 ranking/release/strengthening 显式版本组成；未来若要让纯 Atlas upstream 数据变化也产生新不可变路径，应引入可读的 upstream revision，而不是自建内容 Hash。

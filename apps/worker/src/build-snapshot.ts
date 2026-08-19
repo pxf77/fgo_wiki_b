@@ -15,7 +15,15 @@ import {
 } from "@fgo-wiki/domain";
 import { buildCompleteRankings } from "./computed-rankings.js";
 import { asRecord, requireString } from "./json-validation.js";
+import {
+  assertCnProductPolicy,
+  type CnProductPolicy,
+} from "./product-policy.js";
 import { rankingSourceFiles } from "./ranking-source.js";
+import {
+  assertAtlasCnSourceMetadata,
+  type AtlasCnSourceMetadata,
+} from "./sources/atlas.js";
 
 const compress = promisify(brotliCompress);
 const repositoryRoot = fileURLToPath(new URL("../../../", import.meta.url));
@@ -30,6 +38,8 @@ export interface BuildSnapshotOptions {
   rankingRoot?: string;
   outputRoot?: string;
   reviewedServantsPath?: string;
+  atlasSourceMetadataPath?: string;
+  productPolicyPath?: string;
   releaseGateReportPath?: string;
   strengtheningGateReportPath?: string;
   publicBaseUrl?: string;
@@ -71,16 +81,21 @@ async function loadServants(options: BuildSnapshotOptions): Promise<{
   );
   try {
     const value: unknown = await readJson(reviewedPath);
-    if (!Array.isArray(value)) throw new TypeError("Reviewed CN servants must be an array");
+    if (!Array.isArray(value)) {
+      throw new TypeError("Reviewed CN servants must be an array");
+    }
     return { servants: value as Servant[], sourceStatus: "reviewed" };
   } catch (error) {
     const code = (error as NodeJS.ErrnoException).code;
     if (code !== "ENOENT") throw error;
     const allowBootstrapData =
-      options.allowBootstrapData ?? process.env.ALLOW_BOOTSTRAP_DATA === "true";
+      options.allowBootstrapData ??
+      process.env.ALLOW_BOOTSTRAP_DATA === "true";
     if (!allowBootstrapData) {
       throw new Error(
-        `Reviewed CN servants not found at ${reviewedPath}. Run pnpm data:prepare:fixture for local verification or pnpm data:prepare after syncing Atlas.`,
+        `Reviewed CN servants not found at ${reviewedPath}. ` +
+          "Run pnpm data:prepare:fixture for local verification or " +
+          "pnpm data:prepare after syncing Atlas.",
       );
     }
     return { servants: bootstrapServants, sourceStatus: "bootstrap" };
@@ -98,6 +113,16 @@ async function loadSourceVersions(
   options: BuildSnapshotOptions,
 ): Promise<DatasetSourceVersions | undefined> {
   if (sourceStatus === "bootstrap") return undefined;
+  const atlasSourceMetadataPath = configuredPath(
+    options.atlasSourceMetadataPath,
+    process.env.ATLAS_SOURCE_METADATA_PATH,
+    "data/reports/atlas-source.json",
+  );
+  const productPolicyPath = configuredPath(
+    options.productPolicyPath,
+    process.env.CN_PRODUCT_POLICY_PATH,
+    "data/cn-product-policy.json",
+  );
   const releaseGateReportPath = configuredPath(
     options.releaseGateReportPath,
     process.env.CN_RELEASE_GATE_REPORT_PATH,
@@ -108,16 +133,36 @@ async function loadSourceVersions(
     process.env.CN_STRENGTHENING_GATE_REPORT_PATH,
     "data/reports/cn-strengthening-gate.json",
   );
-  const [releaseReport, strengtheningReport] = await Promise.all([
+  const [
+    atlasSourceMetadataValue,
+    productPolicyValue,
+    releaseReport,
+    strengtheningReport,
+  ] = await Promise.all([
+    readJson<unknown>(atlasSourceMetadataPath),
+    readJson<unknown>(productPolicyPath),
     readJson<unknown>(releaseGateReportPath),
     readJson<unknown>(strengtheningGateReportPath),
   ]);
+  assertAtlasCnSourceMetadata(atlasSourceMetadataValue);
+  assertCnProductPolicy(productPolicyValue);
+  const atlasSourceMetadata: AtlasCnSourceMetadata =
+    atlasSourceMetadataValue;
+  const productPolicy: CnProductPolicy = productPolicyValue;
+
   return {
-    releaseEvidence: readEvidenceVersion(releaseReport, "CN release gate report"),
+    atlasCn: atlasSourceMetadata.revision,
+    releaseEvidence: readEvidenceVersion(
+      releaseReport,
+      "CN release gate report",
+    ),
     strengtheningEvidence: readEvidenceVersion(
       strengtheningReport,
       "CN strengthening gate report",
     ),
+    publicationPolicy: productPolicy.publicationPolicyVersion,
+    capabilityRules: productPolicy.capabilityRulesVersion,
+    rankingFormula: productPolicy.rankingFormulaVersion,
   };
 }
 
@@ -129,20 +174,34 @@ function validateRankingReferences(
   for (const ranking of rankings) {
     for (const entry of ranking.entries) {
       if (!servantIds.has(entry.servantId)) {
-        throw new Error(`Ranking ${ranking.id} references unknown servant ${entry.servantId}`);
+        throw new Error(
+          `Ranking ${ranking.id} references unknown servant ${entry.servantId}`,
+        );
       }
     }
   }
 }
 
-function subsetSnapshot(snapshot: DatasetSnapshot, servantIds: Set<string>): DatasetSnapshot {
+function subsetSnapshot(
+  snapshot: DatasetSnapshot,
+  servantIds: Set<string>,
+): DatasetSnapshot {
   return {
-    metadata: { ...snapshot.metadata, ...(snapshot.metadata.sourceVersions ? { sourceVersions: { ...snapshot.metadata.sourceVersions } } : {}) },
-    servants: snapshot.servants.filter((servant) => servantIds.has(servant.id)),
+    metadata: {
+      ...snapshot.metadata,
+      ...(snapshot.metadata.sourceVersions
+        ? { sourceVersions: { ...snapshot.metadata.sourceVersions } }
+        : {}),
+    },
+    servants: snapshot.servants.filter((servant) =>
+      servantIds.has(servant.id),
+    ),
     rankings: snapshot.rankings.map((ranking) => ({
       ...ranking,
       assumptions: { ...ranking.assumptions },
-      entries: ranking.entries.filter((entry) => servantIds.has(entry.servantId)),
+      entries: ranking.entries.filter((entry) =>
+        servantIds.has(entry.servantId),
+      ),
     })),
     changelog: [...snapshot.changelog],
   };
@@ -170,7 +229,10 @@ function catalogDocument(snapshot: DatasetSnapshot) {
   };
 }
 
-async function writeSnapshotDocuments(root: string, snapshot: DatasetSnapshot): Promise<void> {
+async function writeSnapshotDocuments(
+  root: string,
+  snapshot: DatasetSnapshot,
+): Promise<void> {
   await writeJson(join(root, "metadata.json"), snapshot.metadata);
   await writeJson(join(root, "servants.json"), snapshot.servants);
   await writeJson(join(root, "snapshot.json"), snapshot);
@@ -180,14 +242,19 @@ async function writeSnapshotDocuments(root: string, snapshot: DatasetSnapshot): 
     await writeJson(join(root, "rankings", `${ranking.mode}.json`), ranking);
   }
 
-  const classes = new Set(snapshot.servants.map((servant) => servant.className));
+  const classes = new Set(
+    snapshot.servants.map((servant) => servant.className),
+  );
   for (const className of classes) {
     const ids = new Set(
       snapshot.servants
         .filter((servant) => servant.className === className)
         .map((servant) => servant.id),
     );
-    await writeJson(join(root, "classes", `${className}.json`), subsetSnapshot(snapshot, ids));
+    await writeJson(
+      join(root, "classes", `${className}.json`),
+      subsetSnapshot(snapshot, ids),
+    );
   }
 
   for (const servant of snapshot.servants) {
@@ -198,7 +265,9 @@ async function writeSnapshotDocuments(root: string, snapshot: DatasetSnapshot): 
   }
 }
 
-export async function buildSnapshot(options: BuildSnapshotOptions = {}): Promise<string> {
+export async function buildSnapshot(
+  options: BuildSnapshotOptions = {},
+): Promise<string> {
   const rankingRoot = configuredPath(
     options.rankingRoot,
     process.env.RANKINGS_ROOT,
@@ -209,7 +278,9 @@ export async function buildSnapshot(options: BuildSnapshotOptions = {}): Promise
     process.env.SNAPSHOT_OUTPUT_DIR,
     "data/generated",
   );
-  const pointer = await readJson<LatestRankingPointer>(join(rankingRoot, "latest.json"));
+  const pointer = await readJson<LatestRankingPointer>(
+    join(rankingRoot, "latest.json"),
+  );
   const rankingDirectory = join(rankingRoot, pointer.directory);
   const editorialRankings = await Promise.all(
     rankingSourceFiles.map((file) =>
@@ -233,7 +304,9 @@ export async function buildSnapshot(options: BuildSnapshotOptions = {}): Promise
     ...(sourceVersions ? { sourceVersions } : {}),
   });
   const publishedAt =
-    options.publishedAt ?? process.env.PUBLISHED_AT ?? new Date().toISOString();
+    options.publishedAt ??
+    process.env.PUBLISHED_AT ??
+    new Date().toISOString();
   const snapshot: DatasetSnapshot = {
     metadata: {
       region: "CN",
@@ -249,10 +322,10 @@ export async function buildSnapshot(options: BuildSnapshotOptions = {}): Promise
     changelog: [
       `发布国服数据快照 ${datasetVersion}。`,
       sourceStatus === "reviewed"
-        ? "Atlas CN 当前区域事实与人工覆盖项已合并。"
+        ? "Atlas CN 当前事实、发布策略、规则版本和人工覆盖已合并。"
         : "当前快照使用开发用 Bootstrap 数据。",
-      "输出首页目录、职介分片与从者详情分片；完整 Snapshot 保留用于 API 兼容。",
-      "90++/高难榜以规则评分补齐未人工评级从者，NP1/NP5 数据榜全部由确定性数据生成。",
+      "输出首页目录、职阶分片与从者详情分片；完整 Snapshot 保留用于 API 兼容。",
+      "90++/高难榜以场景化规则评分补齐未人工评级从者，NP1/NP5 使用中性条件数据榜。",
     ],
   };
   assertDatasetSnapshot(snapshot);

@@ -55,6 +55,7 @@ export interface DataClassCoverage {
   missingReleaseSources: number;
   atlasStrengthenedNps: number;
   evidencedReleasedNps: number;
+  atlasCurrentStrengthenedNps: number;
   missingStrengtheningEvents: number;
 }
 

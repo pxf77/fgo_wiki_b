@@ -13,20 +13,30 @@ async function temporaryDirectory(): Promise<string> {
 function reviewedSnapshot() {
   const snapshot = structuredClone(bootstrapSnapshot);
   snapshot.metadata.datasetVersion =
-    "2026-08-13-r1--rel-release-r1--str-strengthening-r1";
+    "2026-08-13-r1--atlas-fixture-atlas-v1--rel-release-r1--str-strengthening-r1--pub-publication-v1--cap-capability-v1--rank-ranking-v2";
   snapshot.metadata.sourceStatus = "reviewed";
   snapshot.metadata.sourceVersions = {
+    atlasCn: "fixture-atlas-v1",
     releaseEvidence: "release-r1",
     strengtheningEvidence: "strengthening-r1",
+    publicationPolicy: "publication-v1",
+    capabilityRules: "capability-v1",
+    rankingFormula: "ranking-v2",
   };
   return snapshot;
 }
 
 test("loads a reviewed snapshot for static Web generation", async (context) => {
   const directory = await temporaryDirectory();
-  context.after(() => rm(directory, { recursive: true, force: true }));
+  context.after(() =>
+    rm(directory, { recursive: true, force: true }),
+  );
   const snapshotPath = join(directory, "snapshot.json");
-  await writeFile(snapshotPath, JSON.stringify(reviewedSnapshot()), "utf8");
+  await writeFile(
+    snapshotPath,
+    JSON.stringify(reviewedSnapshot()),
+    "utf8",
+  );
 
   const snapshot = await loadBuildSnapshot({
     snapshotPath,
@@ -34,12 +44,17 @@ test("loads a reviewed snapshot for static Web generation", async (context) => {
   });
 
   assert.equal(snapshot.metadata.sourceStatus, "reviewed");
-  assert.equal(snapshot.metadata.sourceVersions?.releaseEvidence, "release-r1");
+  assert.equal(
+    snapshot.metadata.sourceVersions?.releaseEvidence,
+    "release-r1",
+  );
 });
 
 test("fails a Web build when the generated snapshot is missing", async (context) => {
   const directory = await temporaryDirectory();
-  context.after(() => rm(directory, { recursive: true, force: true }));
+  context.after(() =>
+    rm(directory, { recursive: true, force: true }),
+  );
 
   await assert.rejects(
     loadBuildSnapshot({
@@ -52,12 +67,21 @@ test("fails a Web build when the generated snapshot is missing", async (context)
 
 test("allows Bootstrap data only through the explicit development flag", async (context) => {
   const directory = await temporaryDirectory();
-  context.after(() => rm(directory, { recursive: true, force: true }));
+  context.after(() =>
+    rm(directory, { recursive: true, force: true }),
+  );
   const snapshotPath = join(directory, "snapshot.json");
-  await writeFile(snapshotPath, JSON.stringify(bootstrapSnapshot), "utf8");
+  await writeFile(
+    snapshotPath,
+    JSON.stringify(bootstrapSnapshot),
+    "utf8",
+  );
 
   await assert.rejects(
-    loadBuildSnapshot({ snapshotPath, allowBootstrapData: false }),
+    loadBuildSnapshot({
+      snapshotPath,
+      allowBootstrapData: false,
+    }),
     /requires a reviewed snapshot/,
   );
   const snapshot = await loadBuildSnapshot({

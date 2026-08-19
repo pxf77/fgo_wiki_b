@@ -1,33 +1,42 @@
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import type {
-  DataClassCoverage,
-  DataMissingSourceCandidate,
-  DataReleaseSource,
-  DataStatusDashboard,
-  DataStrengtheningSource,
-  DatasetSourceVersions,
-  OfficialSource,
-  ServantClass,
-  StrengtheningStatus,
-  StrengtheningTarget,
+import {
+  datasetSourceVersionKeys,
+  type DataClassCoverage,
+  type DataMissingSourceCandidate,
+  type DataReleaseSource,
+  type DataStatusDashboard,
+  type DataStrengtheningSource,
+  type DatasetSourceVersions,
+  type OfficialSource,
+  type ServantClass,
+  type StrengtheningStatus,
+  type StrengtheningTarget,
 } from "@fgo-wiki/domain";
 import type { DataRepository } from "./repository.js";
 
-const repositoryRoot = fileURLToPath(new URL("../../../", import.meta.url));
+const repositoryRoot = fileURLToPath(
+  new URL("../../../", import.meta.url),
+);
 
 function repositoryPath(value: string): string {
   return resolve(repositoryRoot, value);
 }
 
 export interface DataStatusFileConfig {
+  atlasSourceMetadataPath: string;
   normalizationReportPath: string;
   classCatalogReportPath: string;
+  productPolicyPath: string;
   releaseSourcePath: string;
   releaseGateReportPath: string;
   strengtheningSourcePath: string;
   strengtheningGateReportPath: string;
+}
+
+interface AtlasSourceMetadata {
+  revision: string;
 }
 
 interface AtlasNormalizationReport {
@@ -39,6 +48,12 @@ interface AtlasNormalizationReport {
 
 interface ClassCatalogReport {
   classes: DataClassCoverage[];
+}
+
+interface ProductPolicy {
+  publicationPolicyVersion: string;
+  capabilityRulesVersion: string;
+  rankingFormulaVersion: string;
 }
 
 interface ReleaseSourceEntry {
@@ -108,27 +123,31 @@ async function readJson<T>(path: string): Promise<T> {
   try {
     return JSON.parse(await readFile(path, "utf8")) as T;
   } catch (error) {
-    const detail = error instanceof Error ? error.message : String(error);
+    const detail =
+      error instanceof Error ? error.message : String(error);
     throw new DataStatusUnavailableError(
       `Data status input is unavailable at ${path}: ${detail}`,
     );
   }
 }
 
-function sourceVersionKeys(): Array<keyof DatasetSourceVersions> {
-  return ["releaseEvidence", "strengtheningEvidence"];
-}
-
 function countRankingEntries(
   rankings: readonly { entries: readonly unknown[] }[],
 ): number {
-  return rankings.reduce((total, ranking) => total + ranking.entries.length, 0);
+  return rankings.reduce(
+    (total, ranking) => total + ranking.entries.length,
+    0,
+  );
 }
 
 export function loadDataStatusFileConfig(
   environment: NodeJS.ProcessEnv = process.env,
 ): DataStatusFileConfig {
   return {
+    atlasSourceMetadataPath: repositoryPath(
+      environment.ATLAS_SOURCE_METADATA_PATH ??
+        "data/reports/atlas-source.json",
+    ),
     normalizationReportPath: repositoryPath(
       environment.ATLAS_NORMALIZATION_REPORT_PATH ??
         "data/reports/atlas-normalization.json",
@@ -136,6 +155,10 @@ export function loadDataStatusFileConfig(
     classCatalogReportPath: repositoryPath(
       environment.CN_CLASS_CATALOG_REPORT_PATH ??
         "data/reports/cn-class-catalog.json",
+    ),
+    productPolicyPath: repositoryPath(
+      environment.CN_PRODUCT_POLICY_PATH ??
+        "data/cn-product-policy.json",
     ),
     releaseSourcePath: repositoryPath(
       environment.CN_RELEASE_EVIDENCE_PATH ??
@@ -164,19 +187,33 @@ export function createFileDataStatusRepository(
   return {
     async getDashboard(): Promise<DataStatusDashboard> {
       const [
+        atlasSource,
         normalization,
         classCatalog,
+        productPolicy,
         releaseSource,
         releaseGate,
         strengtheningSource,
         strengtheningGate,
       ] = await Promise.all([
+        readJson<AtlasSourceMetadata>(
+          options.files.atlasSourceMetadataPath,
+        ),
         readJson<AtlasNormalizationReport>(
           options.files.normalizationReportPath,
         ),
-        readJson<ClassCatalogReport>(options.files.classCatalogReportPath),
-        readJson<ReleaseSourceManifest>(options.files.releaseSourcePath),
-        readJson<ReleaseGateReport>(options.files.releaseGateReportPath),
+        readJson<ClassCatalogReport>(
+          options.files.classCatalogReportPath,
+        ),
+        readJson<ProductPolicy>(
+          options.files.productPolicyPath,
+        ),
+        readJson<ReleaseSourceManifest>(
+          options.files.releaseSourcePath,
+        ),
+        readJson<ReleaseGateReport>(
+          options.files.releaseGateReportPath,
+        ),
         readJson<StrengtheningSourceManifest>(
           options.files.strengtheningSourcePath,
         ),
@@ -190,7 +227,9 @@ export function createFileDataStatusRepository(
         releaseGate.passed.map((entry) => entry.servantId),
       );
       const appliedEvents = new Set(
-        strengtheningGate.applied.map((entry) => entry.eventId),
+        strengtheningGate.applied.map(
+          (entry) => entry.eventId,
+        ),
       );
 
       const releaseSources = releaseSource.entries
@@ -207,44 +246,70 @@ export function createFileDataStatusRepository(
             ? "passed"
             : "pending",
         }))
-        .sort((left, right) => left.collectionNo - right.collectionNo);
-
-      const strengtheningSources = strengtheningSource.events
-        .map<DataStrengtheningSource>((entry) => ({
-          id: entry.id,
-          servantId: entry.servantId,
-          status: entry.status,
-          target: entry.target,
-          releasedAt: entry.releasedAt,
-          evidence: entry.evidence,
-          summary: [...entry.summary],
-          gateStatus: appliedEvents.has(entry.id) ? "applied" : "pending",
-        }))
         .sort(
           (left, right) =>
-            Date.parse(left.releasedAt) - Date.parse(right.releasedAt) ||
-            left.id.localeCompare(right.id),
+            left.collectionNo - right.collectionNo,
         );
 
+      const strengtheningSources =
+        strengtheningSource.events
+          .map<DataStrengtheningSource>((entry) => ({
+            id: entry.id,
+            servantId: entry.servantId,
+            status: entry.status,
+            target: entry.target,
+            releasedAt: entry.releasedAt,
+            evidence: entry.evidence,
+            summary: [...entry.summary],
+            gateStatus: appliedEvents.has(entry.id)
+              ? "applied"
+              : "pending",
+          }))
+          .sort(
+            (left, right) =>
+              Date.parse(left.releasedAt) -
+                Date.parse(right.releasedAt) ||
+              left.id.localeCompare(right.id),
+          );
+
       const sourceManifestVersions: DatasetSourceVersions = {
+        atlasCn: atlasSource.revision,
         releaseEvidence: releaseSource.version,
         strengtheningEvidence: strengtheningSource.version,
+        publicationPolicy:
+          productPolicy.publicationPolicyVersion,
+        capabilityRules: productPolicy.capabilityRulesVersion,
+        rankingFormula: productPolicy.rankingFormulaVersion,
       };
       const gateSourceVersions: DatasetSourceVersions = {
+        atlasCn: atlasSource.revision,
         releaseEvidence: releaseGate.evidenceVersion,
-        strengtheningEvidence: strengtheningGate.evidenceVersion,
+        strengtheningEvidence:
+          strengtheningGate.evidenceVersion,
+        publicationPolicy:
+          productPolicy.publicationPolicyVersion,
+        capabilityRules: productPolicy.capabilityRulesVersion,
+        rankingFormula: productPolicy.rankingFormulaVersion,
       };
-      const publishedSourceVersions = snapshot.metadata.sourceVersions;
-      const staleSourceVersions = sourceVersionKeys().filter(
-        (key) =>
-          publishedSourceVersions?.[key] !== sourceManifestVersions[key],
-      );
+      const publishedSourceVersions =
+        snapshot.metadata.sourceVersions;
+      const staleSourceVersions =
+        datasetSourceVersionKeys.filter(
+          (key) =>
+            publishedSourceVersions?.[key] !==
+            sourceManifestVersions[key],
+        );
       const blockers: string[] = [];
 
-      for (const key of sourceVersionKeys()) {
-        if (gateSourceVersions[key] !== sourceManifestVersions[key]) {
+      for (const key of datasetSourceVersionKeys) {
+        if (
+          gateSourceVersions[key] !==
+          sourceManifestVersions[key]
+        ) {
           blockers.push(
-            `${key} gate version ${gateSourceVersions[key]} does not match source manifest ${sourceManifestVersions[key]}`,
+            `${key} gate version ${gateSourceVersions[key]} ` +
+              `does not match source manifest ` +
+              sourceManifestVersions[key],
           );
         }
       }
@@ -254,16 +319,19 @@ export function createFileDataStatusRepository(
       ).length;
       if (pendingReleaseCount > 0) {
         blockers.push(
-          `${pendingReleaseCount} release source entries have not passed the gate`,
+          `${pendingReleaseCount} release source entries ` +
+            "have not passed the gate",
         );
       }
 
-      const pendingStrengtheningCount = strengtheningSources.filter(
-        (entry) => entry.gateStatus === "pending",
-      ).length;
+      const pendingStrengtheningCount =
+        strengtheningSources.filter(
+          (entry) => entry.gateStatus === "pending",
+        ).length;
       if (pendingStrengtheningCount > 0) {
         blockers.push(
-          `${pendingStrengtheningCount} strengthening events have not been applied`,
+          `${pendingStrengtheningCount} strengthening events ` +
+            "have not been applied",
         );
       }
 
@@ -281,9 +349,13 @@ export function createFileDataStatusRepository(
         counts: {
           atlasCandidates: normalization.acceptedCount,
           passedReleases: releaseGate.passed.length,
-          missingSourceCandidates: releaseGate.blocked.length,
-          strengtheningEvents: strengtheningSource.events.length,
-          rankingEntries: countRankingEntries(snapshot.rankings),
+          missingSourceCandidates:
+            releaseGate.blocked.length,
+          strengtheningEvents:
+            strengtheningSource.events.length,
+          rankingEntries: countRankingEntries(
+            snapshot.rankings,
+          ),
         },
         normalization: {
           inputCount: normalization.inputCount,
@@ -300,12 +372,15 @@ export function createFileDataStatusRepository(
           ...(publishedSourceVersions
             ? { publishedSourceVersions }
             : {}),
-          staleSourceVersions,
+          staleSourceVersions: [...staleSourceVersions],
           blockers,
         },
         classCoverage: [...classCatalog.classes],
-        missingSourceCandidates: [...releaseGate.blocked].sort(
-          (left, right) => left.collectionNo - right.collectionNo,
+        missingSourceCandidates: [
+          ...releaseGate.blocked,
+        ].sort(
+          (left, right) =>
+            left.collectionNo - right.collectionNo,
         ),
         releaseSources,
         strengtheningSources,

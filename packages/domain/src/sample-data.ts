@@ -201,8 +201,12 @@ export const bootstrapSnapshot: DatasetSnapshot = {
     minimumAppVersion: "0.1.0",
     sourceStatus: "bootstrap",
     sourceVersions: {
+      atlasCn: "bootstrap",
       releaseEvidence: "bootstrap",
       strengtheningEvidence: "bootstrap",
+      publicationPolicy: "bootstrap",
+      capabilityRules: "bootstrap",
+      rankingFormula: "bootstrap",
     },
   },
   servants: bootstrapServants,

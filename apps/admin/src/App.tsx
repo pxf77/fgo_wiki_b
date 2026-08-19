@@ -1,6 +1,9 @@
 // Read-only CN data-status dashboard.
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { DataStatusDashboard } from "@fgo-wiki/domain";
+import type {
+  DataStatusDashboard,
+  DatasetSourceVersions,
+} from "@fgo-wiki/domain";
 import { fetchDataStatus } from "./data-status-api.js";
 
 const publicationLabels = {
@@ -16,27 +19,32 @@ const gateLabels = {
   pending: "待处理",
 } as const;
 
+const sourceVersionLabels: Array<{
+  key: keyof DatasetSourceVersions;
+  label: string;
+}> = [
+  { key: "atlasCn", label: "Atlas" },
+  { key: "releaseEvidence", label: "实装" },
+  { key: "strengtheningEvidence", label: "强化" },
+  { key: "publicationPolicy", label: "发布策略" },
+  { key: "capabilityRules", label: "能力规则" },
+  { key: "rankingFormula", label: "排名公式" },
+];
+
 function SourceVersions({
   values,
 }: {
-  values:
-    | {
-        releaseEvidence: string;
-        strengtheningEvidence: string;
-      }
-    | undefined;
+  values: DatasetSourceVersions | undefined;
 }) {
   if (!values) return <span className="muted">无</span>;
   return (
     <dl className="versions">
-      <div>
-        <dt>实装</dt>
-        <dd>{values.releaseEvidence}</dd>
-      </div>
-      <div>
-        <dt>强化</dt>
-        <dd>{values.strengtheningEvidence}</dd>
-      </div>
+      {sourceVersionLabels.map(({ key, label }) => (
+        <div key={key}>
+          <dt>{label}</dt>
+          <dd>{values[key]}</dd>
+        </div>
+      ))}
     </dl>
   );
 }
@@ -156,7 +164,8 @@ export function App() {
                 <th>实装来源</th>
                 <th>实装缺口</th>
                 <th>Atlas 已强化宝具</th>
-                <th>强化证据</th>
+                <th>带日期证据</th>
+                <th>Atlas 当前状态</th>
                 <th>强化缺口</th>
               </tr>
             </thead>
@@ -170,10 +179,8 @@ export function App() {
                   </td>
                   <td>{coverage.missingReleaseSources}</td>
                   <td>{coverage.atlasStrengthenedNps}</td>
-                  <td>
-                    {coverage.evidencedReleasedNps}/
-                    {coverage.atlasStrengthenedNps}
-                  </td>
+                  <td>{coverage.evidencedReleasedNps}</td>
+                  <td>{coverage.atlasCurrentStrengthenedNps}</td>
                   <td>{coverage.missingStrengtheningEvents}</td>
                 </tr>
               ))}

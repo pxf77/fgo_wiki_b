@@ -44,6 +44,23 @@ const candidates: AtlasServantCandidate[] = [
     ],
   },
   {
+    atlasId: 304000,
+    collectionNo: 400,
+    name: "Atlas 自动发布从者",
+    className: "archer",
+    rarity: 5,
+    noblePhantasms: [
+      {
+        sourceId: 1040001,
+        name: "Atlas 当前强化宝具",
+        color: "arts",
+        scope: "aoe",
+        strengthened: true,
+        hitCount: 4,
+      },
+    ],
+  },
+  {
     atlasId: 309990,
     collectionNo: 999,
     name: "待补来源从者",
@@ -156,6 +173,13 @@ const releaseGate: CnReleaseGateReport = {
       status: "released",
       evidenceUrl: "https://www.bilibili.com/video/BV1Y31KYfEbp/",
     },
+    {
+      collectionNo: 400,
+      servantId: "archer-c400",
+      atlasId: 304000,
+      status: "released",
+      source: "atlas_cn",
+    },
   ],
   blocked: [
     {
@@ -194,7 +218,7 @@ const strengtheningSource: CnStrengtheningSourceManifest = {
   ],
 };
 
-test("builds class coverage and distinguishes dated evidence from Atlas current state", () => {
+test("separates dated evidence, Atlas current state and missing events", () => {
   const report = buildCnClassCatalog(
     candidates,
     releaseSource,
@@ -206,19 +230,31 @@ test("builds class coverage and distinguishes dated evidence from Atlas current 
   assert.deepEqual(report.classes, [
     {
       className: "archer",
-      atlasCandidates: 3,
-      passedReleases: 2,
+      atlasCandidates: 4,
+      passedReleases: 3,
       missingReleaseSources: 1,
-      atlasStrengthenedNps: 2,
-      evidencedReleasedNps: 2,
-      missingStrengtheningEvents: 0,
+      atlasStrengthenedNps: 3,
+      evidencedReleasedNps: 1,
+      atlasCurrentStrengthenedNps: 1,
+      missingStrengtheningEvents: 1,
     },
   ]);
-  assert.equal(report.candidates[0]?.noblePhantasms[0]?.strengtheningStatus, "evidenced");
-  assert.equal(report.candidates[1]?.noblePhantasms[0]?.strengtheningStatus, "atlas_current");
-  assert.equal(report.candidates[2]?.releaseStatus, "missing_source");
+  assert.equal(
+    report.candidates[0]?.noblePhantasms[0]?.strengtheningStatus,
+    "evidenced",
+  );
+  assert.equal(
+    report.candidates[1]?.noblePhantasms[0]?.strengtheningStatus,
+    "missing_event",
+  );
+  assert.equal(
+    report.candidates[2]?.noblePhantasms[0]?.strengtheningStatus,
+    "atlas_current",
+  );
+  assert.equal(report.candidates[3]?.releaseStatus, "missing_source");
   assert.deepEqual(
-    report.candidates[2]?.releaseSourceDraft?.overrides.noblePhantasms[0],
+    report.candidates[3]?.releaseSourceDraft?.overrides
+      .noblePhantasms[0],
     {
       atlasSourceId: 1099901,
       id: "archer-999-np-1",
@@ -230,5 +266,16 @@ test("builds class coverage and distinguishes dated evidence from Atlas current 
       strengthened: false,
     },
   );
-  assert.deepEqual(report.missingStrengtheningEvents, []);
+  assert.deepEqual(report.missingStrengtheningEvents, [
+    {
+      className: "archer",
+      collectionNo: 394,
+      servantId: "archer-ptolemy",
+      atlasSourceId: 1039401,
+      targetId: "ptolemy-buster-single",
+      name: "月は知らず、久遠の光",
+      color: "buster",
+      scope: "single",
+    },
+  ]);
 });

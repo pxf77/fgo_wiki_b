@@ -8,7 +8,10 @@ export type VersionContractSide = "base" | "head";
 
 export interface VersionContractInput {
   changedPaths: readonly string[];
-  readJson(side: VersionContractSide, path: string): unknown | undefined;
+  readJson(
+    side: VersionContractSide,
+    path: string,
+  ): unknown | undefined;
 }
 
 interface RankingPointer {
@@ -17,13 +20,32 @@ interface RankingPointer {
   directory: string;
 }
 
-const releaseSourcePath = "data/cn-release-evidence.json";
-const strengtheningSourcePath = "data/cn-strengthening-evidence.json";
-const rankingLatestPath = "rankings/cn/latest.json";
-const rankingPayloadPattern = /^rankings\/cn\/(?!latest\.json$).+\.json$/;
+interface ProductPolicyVersions {
+  publicationPolicyVersion: string;
+  capabilityRulesVersion: string;
+  rankingFormulaVersion: string;
+}
 
-function record(value: unknown, context: string): Record<string, unknown> {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+const releaseSourcePath = "data/cn-release-evidence.json";
+const strengtheningSourcePath =
+  "data/cn-strengthening-evidence.json";
+const productPolicyPath = "data/cn-product-policy.json";
+const capabilityRulesPath = "apps/worker/src/capabilities.ts";
+const rankingFormulaPath =
+  "apps/worker/src/computed-rankings.ts";
+const rankingLatestPath = "rankings/cn/latest.json";
+const rankingPayloadPattern =
+  /^rankings\/cn\/(?!latest\.json$).+\.json$/;
+
+function record(
+  value: unknown,
+  context: string,
+): Record<string, unknown> {
+  if (
+    typeof value !== "object" ||
+    value === null ||
+    Array.isArray(value)
+  ) {
     throw new TypeError(`${context} must be a JSON object`);
   }
   return value as Record<string, unknown>;
@@ -36,7 +58,9 @@ function stringField(
 ): string {
   const field = value[key];
   if (typeof field !== "string" || field.length === 0) {
-    throw new TypeError(`${context}.${key} must be a non-empty string`);
+    throw new TypeError(
+      `${context}.${key} must be a non-empty string`,
+    );
   }
   return field;
 }
@@ -64,17 +88,58 @@ function semanticChanged(
   );
 }
 
-function headValue(input: VersionContractInput, path: string): unknown {
+function headValue(
+  input: VersionContractInput,
+  path: string,
+): unknown {
   const value = input.readJson("head", path);
-  if (value === undefined) throw new Error(`versioned source cannot be deleted: ${path}`);
+  if (value === undefined) {
+    throw new Error(`versioned source cannot be deleted: ${path}`);
+  }
   return value;
 }
 
-function sourceVersion(value: unknown, path: string, side: VersionContractSide): string {
-  return stringField(record(value, `${side}:${path}`), "version", `${side}:${path}`);
+function sourceVersion(
+  value: unknown,
+  path: string,
+  side: VersionContractSide,
+): string {
+  return stringField(
+    record(value, `${side}:${path}`),
+    "version",
+    `${side}:${path}`,
+  );
 }
 
-function rankingPointer(value: unknown, side: VersionContractSide): RankingPointer {
+function productPolicyVersions(
+  value: unknown,
+  side: VersionContractSide,
+): ProductPolicyVersions {
+  const context = `${side}:${productPolicyPath}`;
+  const policy = record(value, context);
+  return {
+    publicationPolicyVersion: stringField(
+      policy,
+      "publicationPolicyVersion",
+      context,
+    ),
+    capabilityRulesVersion: stringField(
+      policy,
+      "capabilityRulesVersion",
+      context,
+    ),
+    rankingFormulaVersion: stringField(
+      policy,
+      "rankingFormulaVersion",
+      context,
+    ),
+  };
+}
+
+function rankingPointer(
+  value: unknown,
+  side: VersionContractSide,
+): RankingPointer {
   const context = `${side}:${rankingLatestPath}`;
   const data = record(value, context);
   const asOf = stringField(data, "asOf", context);
@@ -87,8 +152,14 @@ function rankingPointer(value: unknown, side: VersionContractSide): RankingPoint
   if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,95}$/.test(directory)) {
     throw new TypeError(`${context}.directory must be path-safe`);
   }
-  if (typeof revision !== "number" || !Number.isInteger(revision) || revision <= 0) {
-    throw new TypeError(`${context}.revision must be a positive integer`);
+  if (
+    typeof revision !== "number" ||
+    !Number.isInteger(revision) ||
+    revision <= 0
+  ) {
+    throw new TypeError(
+      `${context}.revision must be a positive integer`,
+    );
   }
 
   return { asOf, directory, revision };
@@ -108,9 +179,63 @@ function checkSourceVersion(
 
   if (
     semanticChanged(base, head, ["version"], path) &&
-    sourceVersion(base, path, "base") === sourceVersion(head, path, "head")
+    sourceVersion(base, path, "base") ===
+      sourceVersion(head, path, "head")
   ) {
-    throw new Error(`${label} content changed without changing its explicit version`);
+    throw new Error(
+      `${label} content changed without changing its explicit version`,
+    );
+  }
+}
+
+function checkProductPolicyVersion(
+  input: VersionContractInput,
+  changedPaths: ReadonlySet<string>,
+): void {
+  if (!changedPaths.has(productPolicyPath)) return;
+  const head = headValue(input, productPolicyPath);
+  const base = input.readJson("base", productPolicyPath);
+  if (base === undefined) return;
+  const ignoredVersions = [
+    "publicationPolicyVersion",
+    "capabilityRulesVersion",
+    "rankingFormulaVersion",
+  ];
+  if (
+    semanticChanged(
+      base,
+      head,
+      ignoredVersions,
+      productPolicyPath,
+    ) &&
+    productPolicyVersions(base, "base").publicationPolicyVersion ===
+      productPolicyVersions(head, "head").publicationPolicyVersion
+  ) {
+    throw new Error(
+      "CN publication policy changed without increasing publicationPolicyVersion",
+    );
+  }
+}
+
+function checkRuleVersion(
+  input: VersionContractInput,
+  changedPaths: ReadonlySet<string>,
+  codePath: string,
+  versionKey:
+    | "capabilityRulesVersion"
+    | "rankingFormulaVersion",
+  label: string,
+): void {
+  if (!changedPaths.has(codePath)) return;
+  const head = headValue(input, productPolicyPath);
+  const base = input.readJson("base", productPolicyPath);
+  if (base === undefined) return;
+  const baseVersions = productPolicyVersions(base, "base");
+  const headVersions = productPolicyVersions(head, "head");
+  if (baseVersions[versionKey] === headVersions[versionKey]) {
+    throw new Error(
+      `${label} changed without increasing ${versionKey}`,
+    );
   }
 }
 
@@ -121,15 +246,21 @@ function checkCurrentRankings(
   for (const fileName of rankingSourceFiles) {
     const path = `rankings/cn/${pointer.directory}/${fileName}`;
     const data = record(headValue(input, path), `head:${path}`);
-    if (data.asOf !== pointer.asOf || data.revision !== pointer.revision) {
+    if (
+      data.asOf !== pointer.asOf ||
+      data.revision !== pointer.revision
+    ) {
       throw new Error(
-        `${path} must match latest asOf/revision ${pointer.asOf}/r${pointer.revision}`,
+        `${path} must match latest asOf/revision ` +
+          `${pointer.asOf}/r${pointer.revision}`,
       );
     }
   }
 }
 
-export function assertVersionContract(input: VersionContractInput): void {
+export function assertVersionContract(
+  input: VersionContractInput,
+): void {
   const changedPaths = new Set(input.changedPaths);
   checkSourceVersion(
     input,
@@ -143,14 +274,36 @@ export function assertVersionContract(input: VersionContractInput): void {
     strengtheningSourcePath,
     "CN strengthening source",
   );
+  checkProductPolicyVersion(input, changedPaths);
+  checkRuleVersion(
+    input,
+    changedPaths,
+    capabilityRulesPath,
+    "capabilityRulesVersion",
+    "Capability derivation rules",
+  );
+  checkRuleVersion(
+    input,
+    changedPaths,
+    rankingFormulaPath,
+    "rankingFormulaVersion",
+    "Computed ranking formula",
+  );
 
   const rankingPaths = input.changedPaths.filter((path) =>
     rankingPayloadPattern.test(path),
   );
-  if (!changedPaths.has(rankingLatestPath) && rankingPaths.length === 0) return;
+  if (
+    !changedPaths.has(rankingLatestPath) &&
+    rankingPaths.length === 0
+  ) {
+    return;
+  }
 
   const latest = input.readJson("head", rankingLatestPath);
-  if (latest === undefined) throw new Error(`${rankingLatestPath} is required`);
+  if (latest === undefined) {
+    throw new Error(`${rankingLatestPath} is required`);
+  }
   const headPointer = rankingPointer(latest, "head");
   checkCurrentRankings(input, headPointer);
 
@@ -165,12 +318,16 @@ export function assertVersionContract(input: VersionContractInput): void {
   });
   if (contentChanges.length === 0) return;
 
-  const currentPrefix = `rankings/cn/${headPointer.directory}/`;
+  const currentPrefix =
+    `rankings/cn/${headPointer.directory}/`;
   const historicalChange = contentChanges.find(
     (path) => !path.startsWith(currentPrefix),
   );
   if (historicalChange) {
-    throw new Error(`ranking content changed outside the current directory: ${historicalChange}`);
+    throw new Error(
+      `ranking content changed outside the current directory: ` +
+        historicalChange,
+    );
   }
 
   const baseLatest = input.readJson("base", rankingLatestPath);
@@ -178,14 +335,17 @@ export function assertVersionContract(input: VersionContractInput): void {
   const basePointer = rankingPointer(baseLatest, "base");
 
   if (headPointer.asOf < basePointer.asOf) {
-    throw new Error("ranking content changed while latest asOf moved backwards");
+    throw new Error(
+      "ranking content changed while latest asOf moved backwards",
+    );
   }
   if (
     headPointer.asOf === basePointer.asOf &&
     headPointer.revision <= basePointer.revision
   ) {
     throw new Error(
-      `ranking content changed without increasing revision for ${headPointer.asOf}`,
+      `ranking content changed without increasing revision for ` +
+        headPointer.asOf,
     );
   }
 }
@@ -208,7 +368,10 @@ function git(args: readonly string[]): string {
   }).trimEnd();
 }
 
-function changedPaths(baseRef: string, headRef: string): string[] {
+function changedPaths(
+  baseRef: string,
+  headRef: string,
+): string[] {
   const output = git([
     "diff",
     "--name-only",
@@ -222,7 +385,10 @@ function gitJsonReader(
   baseRef: string,
   headRef: string,
 ): VersionContractInput["readJson"] {
-  const refs: Record<VersionContractSide, string> = { base: baseRef, head: headRef };
+  const refs: Record<VersionContractSide, string> = {
+    base: baseRef,
+    head: headRef,
+  };
   const cache = new Map<string, unknown | undefined>();
 
   return (side, path) => {
@@ -243,24 +409,34 @@ function gitJsonReader(
   };
 }
 
-function option(args: readonly string[], name: string): string {
+function option(
+  args: readonly string[],
+  name: string,
+): string {
   const index = args.indexOf(name);
   const value = index >= 0 ? args[index + 1] : undefined;
   if (!value) throw new Error(`${name} is required`);
   return value;
 }
 
-export function verifyGitVersionContract(baseRef: string, headRef: string): void {
+export function verifyGitVersionContract(
+  baseRef: string,
+  headRef: string,
+): void {
   const paths = changedPaths(baseRef, headRef);
   assertVersionContract({
     changedPaths: paths,
     readJson: gitJsonReader(baseRef, headRef),
   });
-  console.log(`Explicit version contract passed for ${paths.length} changed paths.`);
+  console.log(
+    `Explicit version contract passed for ${paths.length} changed paths.`,
+  );
 }
 
 function main(args: readonly string[]): void {
-  const normalized = args.filter((argument) => argument !== "--");
+  const normalized = args.filter(
+    (argument) => argument !== "--",
+  );
   verifyGitVersionContract(
     option(normalized, "--base"),
     option(normalized, "--head"),
@@ -268,11 +444,16 @@ function main(args: readonly string[]): void {
 }
 
 const entryPoint = process.argv[1];
-if (entryPoint && import.meta.url === pathToFileURL(resolve(entryPoint)).href) {
+if (
+  entryPoint &&
+  import.meta.url === pathToFileURL(resolve(entryPoint)).href
+) {
   try {
     main(process.argv.slice(2));
   } catch (error) {
-    console.error(error instanceof Error ? error.message : String(error));
+    console.error(
+      error instanceof Error ? error.message : String(error),
+    );
     process.exitCode = 1;
   }
 }

@@ -166,8 +166,12 @@ export interface RankingSnapshot {
 }
 
 export interface DatasetSourceVersions {
+  atlasCn: string;
   releaseEvidence: string;
   strengtheningEvidence: string;
+  publicationPolicy: string;
+  capabilityRules: string;
+  rankingFormula: string;
 }
 
 export interface DatasetMetadata {

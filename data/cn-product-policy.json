@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "region": "CN",
-  "publicationPolicyVersion": "publication-v1",
-  "autoPublishCollectionNoThrough": 438,
+  "publicationPolicyVersion": "publication-v2",
+  "autoPublishCollectionNoThrough": 450,
   "capabilityRulesVersion": "capability-v1",
   "rankingFormulaVersion": "ranking-v2"
 }

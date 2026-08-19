@@ -14,7 +14,7 @@ const fixtureSourceVersions = {
   releaseEvidence: "2026-08-15-r6",
   strengtheningEvidence:
     "2026-08-13-strengthening-r1",
-  publicationPolicy: "publication-v1",
+  publicationPolicy: "publication-v2",
   capabilityRules: "capability-v1",
   rankingFormula: "ranking-v2",
 } as const;
